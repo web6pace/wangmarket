@@ -10,6 +10,7 @@ import com.xnx3.wangmarket.admin.entity.TemplateVar;
 import com.xnx3.wangmarket.admin.entity.TemplateVarData;
 import com.xnx3.wangmarket.admin.vo.TemplatePageListVO;
 import com.xnx3.wangmarket.admin.vo.TemplatePageVO;
+import com.xnx3.wangmarket.admin.vo.TemplateVO;
 import com.xnx3.wangmarket.admin.vo.TemplateVarListVO;
 import com.xnx3.wangmarket.admin.vo.TemplateVarVO;
 
@@ -141,7 +142,7 @@ public interface TemplateService {
 	 * 				</ul>
 	 * @return
 	 */
-	public BaseVO importTemplate(String templateText, boolean copySiteColumn);
+	public BaseVO importTemplate(String templateText, boolean copySiteColumn, HttpServletRequest request);
 	
 	/**
 	 * 获取当前网站所用模版的模版变量列表。读数据库
@@ -183,4 +184,10 @@ public interface TemplateService {
 	 */
 	public BaseVO deleteTemplateVarForCache(int templateVarId);
 	
+	/**
+	 * 通过模版名字，获取模版信息。 这个模版信息是从数据库中获取的
+	 * @param name 要获取的模版的名字
+	 * @return 如果 {@link TemplateVO#getResult()} 为 success，则可以获取到 {@link TemplateVO#getTemplate()} 。当然，获取到的也就只有 getTemplate() 了
+	 */
+//	public TemplateVO getTemplateForDatabase(String name);
 }

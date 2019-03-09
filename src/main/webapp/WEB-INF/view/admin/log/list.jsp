@@ -2,14 +2,10 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>  
 <%@ taglib uri="http://www.xnx3.com/java_xnx3/xnx3_tld" prefix="x" %>
-<%
-String path = request.getContextPath();
-String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
-%>
-<jsp:include page="../../publicPage/adminCommon/head.jsp">
+<jsp:include page="../../iw/common/head.jsp">
 	<jsp:param name="title" value="用户动作"/>
 </jsp:include>
-<script src="<%=basePath+Global.CACHE_FILE %>Log_type.js"></script>
+<script src="/<%=Global.CACHE_FILE %>Log_type.js"></script>
 
 <table class="layui-table iw_table">
 	<thead>
@@ -34,7 +30,7 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
   </tbody>
 </table>
 <!-- 通用分页跳转 -->
-<jsp:include page="../../publicPage/adminCommon/page.jsp" ></jsp:include>
+<jsp:include page="../../iw/common/page.jsp" ></jsp:include>
 
 <script>
 //查看用户信息
@@ -44,9 +40,9 @@ function userView(id){
 		title:'查看用户信息', 
 		area: ['460px', '630px'],
 		shadeClose: true, //开启遮罩关闭
-		content: '<%=basePath %>admin/user/view.do?id='+id
+		content: '/admin/user/view.do?id='+id
 	});
 }
 
 </script>
-<jsp:include page="../../publicPage/adminCommon/foot.jsp"></jsp:include>  
+<jsp:include page="../../iw/common/foot.jsp"></jsp:include>  

@@ -1,61 +1,111 @@
+# 注重实际业务应用，一切以建站公司利益为主。
+延续了帝国CMS、织梦CMS的建站方式，划分 模版页面、模版变量、指定某个栏目使用哪个模版等，用过帝国、织梦的，可快速使用！<br/>
+后端框架为 SpringBoot2 ，前端框架采用 Layui ，数据库为 Sqlite / Mysql 任选，默认是 Sqlite，无需什么准备，拿来即可运行。
+<br/>
 
-# 注重实际应用－wangmarket
+## 配套软件：扒网站工具、模版计算工具
+看好哪个网站，用它拔下来做成模版。所见网站，皆可为我所用！
+[gitee.com/mail_osc/templatespider](https://gitee.com/mail_osc/templatespider)
 
-系统成熟、流程完善、细节精致、使用简单。极低的成本投入，30秒安装部署，选好模版一键导入。最快出网站，最快赚到钱。网市场云建站系统，历经8年，不断完善，拒绝半成品！<br/>
-注重实际业务应用，一切以建站公司的利益为主。如果贵公司也有网站建设业务、或想做这方面业务，而我的项目对你有帮助，欢迎联系我微信(xnx3com)洽谈合作。<br/>
+## 本项目相关信息
+||||
+| ------------- |-------------|-------------|
+| 网市场官网 | [www.wang.market](http://www.leimingyun.com) | 潍坊雷鸣云网络科技有限公司 |
+| 功能插件 | [www.leimingyun.com/plugin.html](https://www.leimingyun.com/plugin.html) | 十多个功能插件，持续增加中 |
+| 云端免费模版库 | [wang.market/template.jsp](http://wang.market/template.jsp) | 二十多个模版，持续增加中 |
+| 升级日志 | [www.wang.market/log.html](http://www.wang.market/log.html) | 最近几年百余次升级日志 |
+| 有偿帮助 | [www.wang.market/pay.html](http://www.wang.market/pay.html) | 技术人员出租1天300元 |
+| 合作代理 | [www.wang.market/price.html](https://www.leimingyun.com/price.html) | 10元即可加盟代理 |
+| 帮助文档 | [help.wscso.com](http://help.wscso.com) | 系统使用的帮助说明，要使用系统必看 |
+| 二次开发 | [iw.wscso.com](http://iw.wscso.com) | 系统二次开发说明 |
+| 模版文档 | [tag.wscso.com](http://tag.wscso.com) | 模版开发说明，及模版标签文档 |
+| 交流社区 | [bbs.wang.market](http://bbs.leimingyun.com) | 有问题到开发论坛发帖求助 |
+<br/>
 
 
 ## 项目极速搭建体验步骤
-只需一步，你没看错！不需要配置乱七八糟环境，不需要你去下载什么什么容器，点击 “启动” 即可一键运行起来！直接访问 localhost 访问即可使用，追求极致的简单！
-下载链接：[http://www.wang.market/down.html](http://www.wang.market/down.html)
+1. [点此下载 Windows 64一键运行包](http://www.wang.market/down.html) , 
+2. 解压出来,注意不要有中文路径
+3. 双击 “ 启动.bat ”
+4. 访问 [localhost](http://localhost) 
 
-
-## 导航
-|[官网](http://www.wang.market/)  | [模版库](http://wang.market/template.jsp) | [日志](http://www.wang.market/log.html) | [Api](http://api.wscso.com) |[模版开发](http://tag.wscso.com/4192.html) | [快速安装](http://www.wang.market/3749.html) |[扒网站工具](https://gitee.com/mail_osc/templatespider) |[合作代理](http://www.wang.market/index.html#join) | [收费服务](http://www.wang.market/4446.html) |
-| ------------- |-------------:|-------------:|-------------:|-------------:|-------------:|-------------:|-------------:|-------------:|
-||||||||||
-
+就这么简单！
+[查看详细视频演示](http://help.wscso.com/5683.html)
 
 
 ## 功能简介
-1. 在线开通网站
-2. 自动分配二级域名
-3. 在线绑定域名
-4. (半)可视化界面编辑
-5. 成熟的云端模版库一键导入创建网站
-6. 网站页面100%全部自定义的模版体系
-7. 承载几百到几十万的网站个数
-8. 极速做网站的效率(导入模版－改图改字－上线)
-1. 自动识别图片是否涉黄、涉政、是否有违规嫌疑
-1. 自动判断网站内的文章是否有违法嫌疑
-2. 配套 [扒网站工具](https://gitee.com/mail_osc/templatespider) 。看到哪个网站好，拿过来变成自己的！
-9. 价格真的可以达到1个网站几块钱！
-10. ………………[更多可查看](http://www.wang.market/index.html#services)
+|||||
+| ------------- |-------------|-------------|-------------|
+| 自助在线开通网站 | 自动分配二级域名 | 免费绑定自己域名 | 网站页面完全自定义 |
+| 可视化界面编辑 | 成熟模版库 | 导入-改字图-上线 | 百万级承载 |
+| 违规涉嫌自动识别 | 配套扒网站工具 | 模版一键备份还原 | 极速复制网站 |
+| 域名入口的访问统计 | 搜索引擎爬虫统计 | 自动化客服系统 | 万能表单反馈系统 |
+| 插件开发快速应用 | 源码开源数据自己掌控 | UEditor/MarkDown编辑 | 成熟，稳定！ |
 <br/>
 
 ## 在线快速体验
 ##### 在线免费开通一个网站
-[点此免费开通](http://wang.market/regByPhone.do?inviteid=50) 你可以使用你的手机号，免费自助开通一个网站进行使用或体验。一个手机号只有一个免费名额。<br/>
-##### CMS模式网站管理后台（另外还有[纯傻瓜化操作后台的手机模式、电脑模式](http://www.wang.market/index.html#about)）
-登录网址：[wang.market](http://wang.market)<br/>
-登录帐号：ceshicms<br/>
-登录密码：ceshicms<br/>
+[点此免费开通 http://wang.market/regByPhone.do?inviteid=50](http://wang.market/regByPhone.do?inviteid=50) 你可以使用你的手机号，免费自助开通一个网站进行使用或体验。一个手机号只有一个免费名额。<br/>
+
 ##### 代理后台，可自由开通、管理网站
 登录网址：[wang.market](http://wang.market)<br/>
 登录帐号：ceshidaili<br/>
 登录密码：ceshidaili<br/>
 <br/>
 
+## 建站公司合作
+我方（潍坊雷鸣云网络科技有限公司）是阿里云指定合作企业，如果你想使用我们的系统，或将我们系统部署到你自己服务器上使用，请先联系我们（ QQ：921153866、 微信： xnx3com ），我方给你开通一个新的阿里云账户，使用新开通的阿里云账户进行购买服务器。<br/>
+ 1. 必选，最基础的，购买一台1核2G的服务器。我们给你部署好，你可直接使用！（此种方式使用的是自带的 Sqlite 数据库）大约可建立一千来个网站。注意，此条我方不收任何费用，你只是花费买服务器的钱<br/>
+ 2. 可选，在 必选1 的基础上，额外购买 Mysql数据库(RDS) + OSS + CDN , 此种方式更适合建站公司、或开通网站比较多的朋友使用。稳定性强，数据完全分离，数据安全有保障！注意，此条我方不收任何费用，你只是多花费买云数据库RDS的钱（大约1000元/年）；至于OSS以及CDN，价格相当低，你可以将之理解为每月的费用是5块钱！<br/>
+3. 可选，购买我们的授权 ， [http://www.wang.market/price.html](http://www.wang.market/price.html) 500元/年，或者5000元永久，系统中去掉我方的版权标记。当前版权标记的位置：
+  - 1. 总管理后台左下角
+  - 2. 代理后台中左下角
+  - 3. 网站管理后台左下角缩小侧边栏功能中，鼠标放上会出现我方标记
+  - 4. 网站管理后台登陆后的欢迎页面中，最底部的灰色小字
+
+## 共创模版市场
+我们期待您将所做的模版分享出来，共创云端模版库！而且，您可以在模版中稍微放入您的一些信息以及广告。比如，模版中的友情链接，默认放上您想放的几个友情链接，又比如，最底部的技术支持，默认放上贵公司的名字及链接等。<br/>
+有意向的朋友欢迎联系我！ 我微信 xnx3com
+
+
 ## 二次开发<br/>
 #### 环境
 Java 1.8、Maven 3.3.9<br/>
 #### IDE开发工具
-请注意，intellij idea 直接导入运行不起来，报错！
-请使用Eclipse、MyEclipse
+Eclipse、MyEclipse <br/>
+[请注意，intellij idea 直接导入运行不起来，报错！点此查看解决方式](http://iw.wscso.com/5877.html)
 #### 步骤
 1. 直接导入maven项目
-2. 运行 com.xnx3.Application 即可运行项目
+2. 运行 com.xnx3.Application 即可运行项目 (SpringBoot 框架，不懂的请先自行补充此框架相关基础知识)
 3. 访问 /login.do
+
+
+## 优秀合作项目推荐
+| 项目 | 码云地址 | 简介 |
+| ------------- |-------------|-------------|
+| xnx3 | [gitee.com/xnx3/xnx3](https://gitee.com/xnx3/xnx3) | Java常用工具类 |
+| Coody Framework | [gitee.com/coodyer/coody-icop](https://gitee.com/coodyer/coody-icop) | 国产分布式IOC框架、已实现IOC、AOP、定时任务、切面缓存、<br/>MVC、事务管理 |
+
+
+
+## 云端模版库<br/>
+你的时间是非常宝贵的！不会让你一接触就要自己去学习做模版。
+我们附带有 [云端模版库，点此查看](http://wang.market/template.do)<br/>
+虽然模版不多只有不到20套，但却是可以在创建网站后一键导入，直接拿过来使用！一键导入之后，会自动创建栏目、页面。你只需要改一下栏目名字、改改文字、图片，就可以达到成本网站交付标准！作为初期的你，足够用此来来服务客户、及熟悉整个系统！另外我们的模版库的模版会持续增加。<br/>
+[所见网站，皆可为我所用－无限模版计划](https://github.com/xnx3/templatespider)
+
+<br/>
+
+
+## 第三方模版<br/>
+
+这些模版都是有本系统的爱好者自己开发的，拿出来无私分享给使用本系统的朋友，在此感谢他们！
+
+| 作者 | 链接 |
+| ------------- |-------------|
+| 木登子 | [gitee.com/roseberry/template_for_wangmarket](https://gitee.com/roseberry/template_for_wangmarket) |
+
+<br/>
 
 
 ## 项目简介<br/>
@@ -70,13 +120,6 @@ svn版本更新迭代837次！<br/>
 <br/>
 
 
-## 云端模版库<br/>
-你的时间是非常宝贵的！不会让你一接触就要自己去学习做模版。
-我们附带有 [云端模版库，点此查看](http://wang.market/template.jsp)<br/>
-虽然模版不多只有不到20套，但却是可以在创建网站后一键导入，直接拿过来使用！一键导入之后，会自动创建栏目、页面。你只需要改一下栏目名字、改改文字、图片，就可以达到成本网站交付标准！作为初期的你，足够用此来来服务客户、及熟悉整个系统！另外我们的模版库的模版会持续增加。<br/>
-[所见网站，皆可为我所用－无限模版计划](https://github.com/xnx3/templatespider)
-
-<br/>
 
 ## 使用的成本投入
 #### 1. 无成本<br/>
@@ -86,9 +129,9 @@ svn版本更新迭代837次！<br/>
 开通一个网站的价格为：1元/年，以后每次充值不得少于100元。另外，你可以继续开通你的下级代理、下下级……<br/>
 [点击此链接查看代理开通步骤 www.wang.market/3192.html](http://www.wang.market/3192.html) （强烈建议先用体验账号自行体验）
 #### 2. 七百左右成本<br/>
-一台1核2G，安装网市场云建站系统，可以支撑起至少200个以上的网站(也可能过1000个没啥问题。网站本身做好后就很少会登陆后台修改了)。服务器成本一年大约七百。<br/>
-#### 3. 六千以上的成本<br/>
-购买两台及以上，配置为2核4G及以上的云服务器。采用负载均衡、OSS、RDS、Docker、MQ、SLS、及弹性伸缩方案，将网站访问、管理后台、客服等功能完全分离，一年预计最低消耗六千元以上。建立十来万个网站不在话下。此种方式架构部署如下：<br/>
+一台1核2G，安装网市场云建站系统，可以支撑起至少1000个以上的网站(也可能过3000个没啥问题。网站本身做好后就很少会登陆后台修改了)。服务器成本一年大约七百。<br/>
+#### 3. 五千以上的成本<br/>
+购买两台及以上，配置为2核4G及以上的云服务器。采用负载均衡、OSS、RDS、Docker、MQ、SLS、及弹性伸缩方案，将网站访问、管理后台、客服等功能完全分离，一年预计最低消耗五千元以上。建立十来万个网站不在话下。此种方式架构部署如下：<br/>
 ![](http://cdn.weiunity.com/site/341/templateimage/4f6088b65e514321a7caed3c1f62a547.png)<br/>
 <br/>
 
@@ -98,8 +141,7 @@ wangmarket                          GitHub目录
 ├─src                               项目源代码 ( Maven )
 ├─pom.xml                           项目源代码 pom ( Maven )
 ├─else                              其他的杂七杂八相关文件，一般用不到
-│  ├─wangmarket.sql                 项目运行所需要的数据库文件( Mysql数据库，默认sqlite3，一般用不到)
-│  ├─wangmarket.db                  sqlite3 数据库
+│  ├─wangmarket.sql                 项目运行所需要的数据库文件( Mysql数据库，默认sqlite3)
 │  ├─upgradeLog                     自项目上线运营后～开源之前，升级日志
 │  ├─pc_wap_tag                     手机、电脑模式网站模版所使用的动态标签
 │  └─instructions.md                其他项目配置说明，如邮件发送、日志系统等
@@ -114,12 +156,14 @@ v4.0 版本以后，使用 Spring Boot2 框架，以及采用 Maven 进行管理
 
 
 ## 交流、反馈<br/>
+交流论坛：[bbs.wang.market](http://bbs.wang.market) 【建议有问题到开发论坛发帖求助，我们会每天不定时巡视，回答求助信息。求助必回】<br/>
+交流QQ群：472328584<br/>
+
 开发者姓名：管雷鸣<br/>
 开发者QQ：921153866<br/>
 开发者微信：xnx3com<br/>
 开发者微信公众号：wangmarket<br/>
-交流QQ群：472328584<br/>
-官方网站：[www.wang.market](http://www.wang.market)<br/>
+官方网站：[www.wang.market](http://www.leimingyun.com)<br/>
 GitHub：[github.com/xnx3/wangmarket](https://github.com/xnx3/wangmarket)<br/>
 开源中国：[gitee.com/mail_osc/wangmarket](https://gitee.com/mail_osc/wangmarket)<br/>
 <br/>
@@ -137,7 +181,7 @@ GitHub：[github.com/xnx3/wangmarket](https://github.com/xnx3/wangmarket)<br/>
 ## 版权声明<br/>
 著作权登记号：2017SR608214<br/>
 本软件使用 Apache License 2.0 协议。您可以随意修改、发布，或用于商业领域。但首页底部需显式保留我们“网市场”版权标示及我们官方首页的链接！<br/>
-另外可以与我们有更多合作可以查看： [http://www.wang.market/index.html#join](http://www.wang.market/index.html#join) <br/>
+[网市场云建站系统软件商业授权说明（不授权也完全可以免费使用！）](http://www.wang.market/price.html)
 <br/>
 <br/>
 项目由个人历经数年，凭借每晚四小时开发而来。一个人的兴趣、执念、或者信仰，所发挥出的光芒，可能会照亮一个行业

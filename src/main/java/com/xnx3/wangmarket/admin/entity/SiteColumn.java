@@ -23,29 +23,43 @@ public class SiteColumn implements java.io.Serializable, Cloneable {
 	public static final Short USED_UNABLE = 0;
 	
 	/**
-	 * 所属类型，1新闻信息
+	 * 所属类型，1新闻信息 (CMS 已废弃此状态)
+	 * @deprecated
 	 */
 	public static final Short TYPE_NEWS = 1;
 	/**
-	 * 图文信息
+	 * 图文信息 (CMS 已废弃此状态)
+	 * @deprecated
 	 */
 	public static final Short TYPE_IMAGENEWS = 2;
 	/**
-	 * 独立页面
+	 * 3独立页面
+	 * @deprecated
 	 */
 	public static final Short TYPE_PAGE = 3;
 	/**
-	 * 4留言板
+	 * 4留言板 (CMS 已废弃此状态)
+	 * @deprecated
 	 */
 	public static final Short TYPE_LEAVEWORD= 4;
 	/**
-	 * 5超链接
+	 * 5超链接 (CMS 已废弃此状态)
+	 * @deprecated
 	 */
 	public static final Short TYPE_HREF= 5;
 	/**
-	 * 6纯文字
+	 * 6纯文字 (CMS 已废弃此状态)
+	 * @deprecated
 	 */
 	public static final Short TYPE_TEXT= 6;
+	/**
+	 * 所属类型，7信息列表 (CMS 模式使用，v4.6版本增加，代替新闻信息、图文信息两种状态)
+	 */
+	public static final Short TYPE_LIST= 7;
+	/**
+	 * 所属类型，8独立页面 (CMS 模式使用，v4.6版本增加，代替之前的3独立页面的状态。以实现4.6之前版本向4.6版本的过度)
+	 */
+	public static final Short TYPE_ALONEPAGE= 8;
 	
 	/**
 	 * 客户端类型：PC电脑端
@@ -67,17 +81,27 @@ public class SiteColumn implements java.io.Serializable, Cloneable {
 	 */
 	public static final Short EDIT_MODE_TEMPLATE = 1;
 	
+	/**
+	 * 栏目内信息的列表排序规则，按照发布时间倒序，发布时间越晚，排序越靠前
+	 * 默认便是此种的，v4.4版本增加，4.4版本以前只有这一种排序
+	 */
+	public static final Short LIST_RANK_ADDTIME_DESC = 1;
+	
+	/**
+	 * 栏目内信息的列表排序规则，按照发布时间正序，发布时间越早，排序越靠前
+	 */
+	public static final Short LIST_RANK_ADDTIME_ASC = 2;
 	
 	// Fields
 	private Integer id;
 	private String name;
 	private String url;
-	private String icon;
-	private Integer rank;
+	private String icon;	//本栏目的图片、图标，可在模版中使用{siteColumn.icon}进行调用此图以显示
+	private Integer rank;	//栏目间的排序
 	private Short used;
 	private Integer siteid;
 	private Integer userid;
-	private Integer parentid;
+	private Integer parentid;	//已废弃，用 parentCodeName 取代
 	private Short type;
 //	private Short client;
 	private String templatePageListName;
@@ -87,7 +111,15 @@ public class SiteColumn implements java.io.Serializable, Cloneable {
 	private Integer listNum;
 	private String inputModelCodeName;
 	private Short editMode;	//若是独立页面，内容的编辑方式，是使用富文本编辑框呢，还是直接编辑模板
+	private Short listRank;	//列表排序，当前栏目若是信息列表，信息列表的排序规则
 	
+	private Short editUseTitlepic;		//内容管理中，添加内容时，封面图片的输入。 0隐藏，1显示，若是null，则是兼容v4.6以前的版本，需要根据栏目类型type进行判断
+	private Short editUseIntro;			//内容管理中，添加内容时，文章简介的输入 0隐藏，1显示，若是null，则是兼容v4.6以前的版本，需要根据栏目类型type进行判断
+	private Short editUseText;			//内容管理中，添加内容时，文章详情的输入 0隐藏，1显示，若是null，则是兼容v4.6以前的版本，需要根据栏目类型type进行判断
+	private Short editUseExtendPhotos;	//内容管理中，添加内容时，图集的输入 0隐藏，1显示，若是null，则是兼容v4.6以前的版本，需要根据栏目类型type进行判断
+	
+	//v4.7
+	private Short useGenerateView;		//是否生成内容页面。取值1生成；0不生成，如果为null则默认为1，默认是生成。set时使用 SiteColumn.USED_ENABLE 赋值
 	
 	// Constructors
 
@@ -267,18 +299,73 @@ public class SiteColumn implements java.io.Serializable, Cloneable {
 		}
 	}
 
+	@Column(name = "list_rank")
+	public Short getListRank() {
+		return listRank;
+	}
+
+	public void setListRank(Short listRank) {
+		this.listRank = listRank;
+	}
+
+	@Column(name = "edit_use_titlepic")
+	public Short getEditUseTitlepic() {
+		return editUseTitlepic;
+	}
+
+	public void setEditUseTitlepic(Short editUseTitlepic) {
+		this.editUseTitlepic = editUseTitlepic;
+	}
+
+	@Column(name = "edit_use_intro")
+	public Short getEditUseIntro() {
+		return editUseIntro;
+	}
+
+	public void setEditUseIntro(Short editUseIntro) {
+		this.editUseIntro = editUseIntro;
+	}
+
+	@Column(name = "edit_use_text")
+	public Short getEditUseText() {
+		return editUseText;
+	}
+
+	public void setEditUseText(Short editUseText) {
+		this.editUseText = editUseText;
+	}
+
+	@Column(name = "edit_use_extend_photos")
+	public Short getEditUseExtendPhotos() {
+		return editUseExtendPhotos;
+	}
+
+	public void setEditUseExtendPhotos(Short editUseExtendPhotos) {
+		this.editUseExtendPhotos = editUseExtendPhotos;
+	}
+
+	@Column(name = "use_generate_view")
+	public Short getUseGenerateView() {
+		return useGenerateView;
+	}
+
+	public void setUseGenerateView(Short useGenerateView) {
+		this.useGenerateView = useGenerateView;
+	}
+
 	@Override
 	public String toString() {
-		return "SiteColumn [id=" + id + ", name=" + name + ", url=" + url
-				+ ", icon=" + icon + ", rank=" + rank + ", used=" + used
-				+ ", siteid=" + siteid + ", userid=" + userid + ", parentid="
-				+ parentid + ", type=" + type + ", templatePageListName="
-				+ templatePageListName + ", templatePageViewName="
-				+ templatePageViewName + ", codeName=" + codeName
-				+ ", parentCodeName=" + parentCodeName + ", listNum=" + listNum
-				+ ", inputModelCodeName=" + inputModelCodeName + ", editMode="
-				+ editMode + "]";
+		return "SiteColumn [id=" + id + ", name=" + name + ", url=" + url + ", icon=" + icon + ", rank=" + rank
+				+ ", used=" + used + ", siteid=" + siteid + ", userid=" + userid + ", parentid=" + parentid + ", type="
+				+ type + ", templatePageListName=" + templatePageListName + ", templatePageViewName="
+				+ templatePageViewName + ", codeName=" + codeName + ", parentCodeName=" + parentCodeName + ", listNum="
+				+ listNum + ", inputModelCodeName=" + inputModelCodeName + ", editMode=" + editMode + ", listRank="
+				+ listRank + ", editUseTitlepic=" + editUseTitlepic + ", editUseIntro=" + editUseIntro
+				+ ", editUseText=" + editUseText + ", editUseExtendPhotos=" + editUseExtendPhotos + ", useGenerateView="
+				+ useGenerateView + "]";
 	}
+
+	
 	
 	
 }

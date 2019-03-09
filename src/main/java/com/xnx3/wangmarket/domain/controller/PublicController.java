@@ -1,16 +1,16 @@
 package com.xnx3.wangmarket.domain.controller;
 
-import java.util.Vector;
+import java.lang.reflect.InvocationTargetException;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
-import com.aliyun.openservices.log.common.LogItem;
-import com.aliyun.openservices.log.exception.LogException;
+
 import com.xnx3.DateUtil;
 import com.xnx3.StringUtil;
 import com.xnx3.j2ee.Global;
@@ -18,13 +18,16 @@ import com.xnx3.j2ee.func.AttachmentFile;
 import com.xnx3.j2ee.service.SqlService;
 import com.xnx3.j2ee.util.IpUtil;
 import com.xnx3.j2ee.util.TerminalDetection;
+import com.xnx3.j2ee.vo.BaseVO;
 import com.xnx3.net.HttpResponse;
 import com.xnx3.net.HttpUtil;
 import com.xnx3.net.OSSUtil;
 import com.xnx3.wangmarket.admin.entity.Site;
 import com.xnx3.wangmarket.domain.G;
-import com.xnx3.wangmarket.domain.bean.RequestLog;
+import com.xnx3.wangmarket.domain.Log;
+import com.xnx3.wangmarket.domain.bean.RequestInfo;
 import com.xnx3.wangmarket.domain.bean.SimpleSite;
+import com.xnx3.wangmarket.domain.pluginManage.DomainPluginManage;
 import com.xnx3.wangmarket.domain.vo.SImpleSiteVO;
 
 /**
@@ -41,11 +44,6 @@ public class PublicController extends BaseController {
 	//主站url，即使用泛解析的主域名访问时，直接跳转到的url
 	@Value("masterSiteUrl")
 	private String masterSiteUrl;
-//	@RequestMapping("dns.cgi")
-//	public String htmls(HttpServletRequest request, HttpServletResponse response, Model model,
-//			@RequestParam(value = "htmlFile", required = false , defaultValue="") String htmlFile){
-//		
-//	}
 	
 	/**
 	 * 域名捕获转发
@@ -56,12 +54,6 @@ public class PublicController extends BaseController {
 	public String dns(HttpServletRequest request, HttpServletResponse response, Model model){
 		String htmlFile = request.getServletPath();
 		htmlFile = htmlFile.replace("/", "");	//将开头的 /去掉
-//		String[] hfs = htmlFiles.split(".");
-//		String htmlFile = hfs[0];
-//		//判断访问的站点的哪个文件
-//		if(htmlFile.length() == 0){
-//			htmlFile = "index";
-//		}
 		
 		SImpleSiteVO simpleSiteVO = getCurrentSimpleSite(request);
 		
@@ -83,12 +75,28 @@ public class PublicController extends BaseController {
 			}
 		}
 		
+		RequestInfo requestInfo = new RequestInfo();
+		requestInfo.setHtmlFile(htmlFile);
+		requestInfo.setIp(IpUtil.getIpAddress(request));
+		requestInfo.setReferer(request.getHeader("referer"));
+		requestInfo.setServerName(request.getServerName());
+		requestInfo.setTime(DateUtil.timeForUnix10());
+		requestInfo.setUserAgent(request.getHeader("User-Agent"));
+		
 //		htmlFile = htmlFile + ".html";
 		//访问日志记录
-		requestLog(request, htmlFile);
+//		requestLog(request, requestInfo);
+		Log.requestLog(request, requestInfo, simpleSiteVO);
 		
 		if(simpleSiteVO.getResult() - SImpleSiteVO.FAILURE == 0){
-			return error404();
+			//未发现这个域名对应的网站
+			
+			//有可能是系统还未安装，判断，如果是，则进行指引安装
+			if(!isUnInstallRequest()){
+				return "domain/welcome";
+			}
+			
+			return "domain/notFindDomain";
 		}else{
 			//判断网站的状态，冻结的网站将无法访问
 			SimpleSite simpleSite = simpleSiteVO.getSimpleSite();
@@ -106,18 +114,19 @@ public class PublicController extends BaseController {
 				if(AttachmentFile.isMode(AttachmentFile.MODE_ALIYUN_OSS) && OSSUtil.getOSSClient() == null){
 					System.out.println("您未开启OSS对象存储服务！网站访问是必须通过读OSS数据才能展现出来的。开启可参考：http://www.guanleiming.com/2327.html");
 				}
+				if(htmlFile.equals("index.html")){
+					//如果是首页，但是没有获取到这个页面的数据
+					
+					//有可能是系统还未安装，判断，如果是，则进行指引安装
+					if(!isUnInstallRequest()){
+						return "domain/welcome";
+					}
+					
+					//已安装过了，正常访问，那肯定是CMS模式，没有生成整站的缘故，应在404页面中给用户提示
+					return "domain/notFindIndexHtml";
+				}
 				return "domain/404";
 			}
-			
-//			InputStream in = ossObj.getObjectContent();
-//			String html = null;
-//			try {
-//				html = IOUtils.readStreamAsString(in, "UTF-8");
-//			} catch (IOException e) {
-//				e.printStackTrace();
-//			}
-			
-//			html = html.replaceAll("(?m)^\\s*$"+System.lineSeparator(), "");
 			
 			//如果用的第六套模版，需要进行手机电脑自适应
 			if(simpleSite.getTemplateId() - 6 == 0){
@@ -136,17 +145,18 @@ public class PublicController extends BaseController {
 			html = replaceHtmlTag(simpleSite, html);
 			//过滤掉空行
 //			html = html.replaceAll("((\r\n)|\n)[\\s\t ]*(\\1)+", "$1").replaceAll("^((\r\n)|\n)", ""); 
-			//加载在线客服
-			int time = DateUtil.timeForUnix10();
-			html = html + ""
-					+ "<script> "
-					+ "		var im_kefu_socketUrl = '"+ com.xnx3.wangmarket.im.Global.websocketUrl +"'; "
-					+ "		var attachmentFileUrl = '"+AttachmentFile.netUrl()+"';"
-					+ "</script>"
-					+ "<script src=\"http://res.weiunity.com/js/fun.js\"></script>"
-					+ "<script src=\""+AttachmentFile.netUrl()+"/site/"+simpleSite.getId()+"/data/site.js?v="+time+"\"></script>"
-					+ "<script src=\""+AttachmentFile.netUrl()+"/js/im/site_kefu.js\"></script>"
-					+ "";
+			
+			
+			/**** 针对html源码处理插件 ****/
+			try {
+				html = DomainPluginManage.manage(html, simpleSite, requestInfo);
+			} catch (InstantiationException | IllegalAccessException
+					| NoSuchMethodException | SecurityException
+					| IllegalArgumentException | InvocationTargetException e) {
+				e.printStackTrace();
+			}
+			
+			
 			model.addAttribute("html", html);
 			
 			//判断此网站的类型，是PC端还是手机端
@@ -164,39 +174,57 @@ public class PublicController extends BaseController {
 		}
 	}
 	
-	private void requestLog(HttpServletRequest request, String htmlFile){
-		//进行记录访问日志，记录入Session
-		RequestLog requestLog = (RequestLog) request.getSession().getAttribute("requestLog");
-		if(requestLog == null){
-			requestLog = new RequestLog();
-			requestLog.setIp(IpUtil.getIpAddress(request));
-			requestLog.setServerName(request.getServerName());
-			
-			SImpleSiteVO vo = (SImpleSiteVO) request.getSession().getAttribute("SImpleSiteVO");
-			if(vo != null){
-				requestLog.setSiteid(vo.getSimpleSite().getId());
-			}
-			
-			request.getSession().setAttribute("requestLog", requestLog);
+	/**
+	 * 判断是否是第一次安装好后访问,判断一下是不是安装之前 install/index.do 访问的，安装入口还是开启的
+	 * @return
+	 * 		<ul>
+	 * 			<li>false： 系统尚未进行安装，会转到 domain/welcome 进行安装指引</li>
+	 * 			<li>true： 系统已进行安装了，不需要安装指引</li>
+	 * 		</ul>
+	 */
+	private boolean isUnInstallRequest(){
+		//可能是第一次安装好后访问,判断一下是不是安装install/index.do 还是开启的， true：开启的，允许进行安装
+		if(Global.get("IW_AUTO_INSTALL_USE") != null && Global.get("IW_AUTO_INSTALL_USE").equals("true")){
+			//install/index.do 还是开启的,那几乎可以肯定，还未安装过，这也就是刚运行来后访问的
+			return false;
 		}
 		
-		LogItem logItem = new LogItem(DateUtil.timeForUnix10());
-		logItem.PushBack("ip", requestLog.getIp());
-		logItem.PushBack("referer", request.getHeader("referer"));
-		logItem.PushBack("userAgent", request.getHeader("User-Agent"));
-		logItem.PushBack("htmlFile", htmlFile);
-		logItem.PushBack("siteid", requestLog.getSiteid()+"");
-		requestLog.getLogGroup().add(logItem);
-		
-		if(requestLog.getLogGroup().size() > 1000){
-			try {
-				G.aliyunLogUtil.saveByGroup(requestLog.getServerName(), requestLog.getIp(), requestLog.getLogGroup());
-				requestLog.setLogGroup(new Vector<LogItem>());
-			} catch (LogException e) {
-				e.printStackTrace();
-			}
-		}
+		return true;
 	}
+	
+//	private void requestLog(HttpServletRequest request, RequestInfo requestInfo){
+//		//进行记录访问日志，记录入Session
+//		RequestLog requestLog = (RequestLog) request.getSession().getAttribute("requestLog");
+//		if(requestLog == null){
+//			requestLog = new RequestLog();
+//			requestLog.setIp(requestInfo.getIp());
+//			requestLog.setServerName(requestInfo.getServerName());
+//			
+//			SImpleSiteVO vo = (SImpleSiteVO) request.getSession().getAttribute("SImpleSiteVO");
+//			if(vo != null){
+//				requestLog.setSiteid(vo.getSimpleSite().getId());
+//			}
+//			
+//			request.getSession().setAttribute("requestLog", requestLog);
+//		}
+//		
+//		LogItem logItem = new LogItem(DateUtil.timeForUnix10());
+//		logItem.PushBack("ip", requestInfo.getIp());
+//		logItem.PushBack("referer", requestInfo.getReferer());
+//		logItem.PushBack("userAgent", requestInfo.getUserAgent());
+//		logItem.PushBack("htmlFile", requestInfo.getHtmlFile());
+//		logItem.PushBack("siteid", requestLog.getSiteid()+"");
+//		requestLog.getLogGroup().add(logItem);
+//		
+//		if(requestLog.getLogGroup().size() > 1000){
+//			try {
+//				G.aliyunLogUtil.saveByGroup(requestLog.getServerName(), requestLog.getIp(), requestLog.getLogGroup());
+//				requestLog.setLogGroup(new Vector<LogItem>());
+//			} catch (LogException e) {
+//				e.printStackTrace();
+//			}
+//		}
+//	}
 	
 	/**
 	 * sitemap.xml展示
@@ -206,11 +234,21 @@ public class PublicController extends BaseController {
 	@RequestMapping("sitemap.xml")
 	public String sitemap(HttpServletRequest request, Model model){
 		SImpleSiteVO simpleSiteVO = getCurrentSimpleSite(request);
+		
+		RequestInfo requestInfo = new RequestInfo();
+		requestInfo.setHtmlFile("sitemap.xml");
+		requestInfo.setIp(IpUtil.getIpAddress(request));
+		requestInfo.setReferer(request.getHeader("referer"));
+		requestInfo.setServerName(request.getServerName());
+		requestInfo.setTime(DateUtil.timeForUnix10());
+		requestInfo.setUserAgent(request.getHeader("User-Agent"));
+		
 		if(simpleSiteVO.getResult() - SImpleSiteVO.FAILURE == 0){
 			return error404();
 		}else{
 			//访问日志记录
-			requestLog(request, "sitemap.xml");
+//			requestLog(request, requestInfo);
+			Log.requestLog(request, requestInfo, simpleSiteVO);
 			
 			HttpResponse hr = http.get(AttachmentFile.netUrl()+"site/"+simpleSiteVO.getSimpleSite().getId()+"/sitemap.xml");
 			if(hr.getCode() - 404 == 0){
@@ -270,10 +308,13 @@ public class PublicController extends BaseController {
 				if(twoDomain != null){
 					//用的二级域名
 					simpleSite = G.getDomain(twoDomain);
-				}else{
-					//自己绑定的域名
+				}
+				
+				if(simpleSite == null){
+					//如果没有使用二级域名、或者是二级域名，但在二级域名里面，没找到，那么就从自己绑定的域名里面找
 					simpleSite = G.getBindDomain(serverName);
 				}
+				
 			}
 			
 			if(simpleSite == null){
@@ -302,7 +343,7 @@ public class PublicController extends BaseController {
 		//替换图片文件
 		html = html.replaceAll("src=\"news/", "src=\""+AttachmentFile.netUrl()+"site/"+simpleSite.getId()+"/news/");
 		//替换掉HTML的注释 <!-- -->
-		html = html.replaceAll("<!--(.*?)-->", "");
+		//html = html.replaceAll("<!--(.*?)-->", "");
 		//替换掉JS的注释 /**/
 		html = html.replaceAll("/\\*(.*?)\\*/", "");
 		return html;

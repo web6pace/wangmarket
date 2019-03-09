@@ -3,6 +3,7 @@ package com.xnx3.wangmarket.admin;
 import javax.servlet.http.HttpServletRequest;
 
 import com.xnx3.j2ee.Global;
+import com.xnx3.j2ee.entity.User;
 import com.xnx3.j2ee.func.ActionLogCache;
 import com.xnx3.j2ee.shiro.ActiveUser;
 import com.xnx3.j2ee.shiro.ShiroFunc;
@@ -134,7 +135,8 @@ public class Func {
 		if(site == null){
 			//既不是代理，也不是超级管理员，那肯定就是用户权限了。用户权限没有网站，那就跳转到网站创建页面
 			//v3.9以后，这种情况是不存在的。账号跟网站是一块创建的
-			return "site/createSite.do";
+			//临时这个链接
+			return "template/index.do";
 		}
 		
 		if(site.getClient() - Site.CLIENT_CMS == 0){
@@ -147,5 +149,34 @@ public class Func {
 			System.out.println("--------Func.getConsoleRedirectUrl 未发现是神马的。siteid:"+site.getId());
 		}
 		return "";
+	}
+	
+	/**
+	 * 判断当前用户是否是超级管理员，有总管理后台权限
+	 * @return true:有总管理后台的权限；  false：没有
+	 */
+	public static boolean haveSuperAdminAuth(){
+		User user = ShiroFunc.getUser();
+		if(user == null){
+			//未登陆，那就直接是false
+			return false;
+		}
+		
+		if(com.xnx3.j2ee.Func.isAuthorityBySpecific(user.getAuthority(), Global.get("ROLE_SUPERADMIN_ID"))){
+			return true;
+		}
+		return false;
+	}
+	
+	
+	/**
+	 * 判断当前用户是否是代理商，有代理后台权限
+	 * @return true:有代理后台的权限；  false：没有
+	 */
+	public static boolean haveAgencyAuth(){
+		if(com.xnx3.j2ee.Func.isAuthorityBySpecific(ShiroFunc.getUser().getAuthority(), Global.get("ROLE_SUPERADMIN_ID"))){
+			return true;
+		}
+		return false;
 	}
 }

@@ -1,14 +1,11 @@
 <%@page import="com.xnx3.j2ee.Global"%>
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@page import="com.xnx3.wangmarket.admin.G"%>
-<%
-String path = request.getContextPath();
-String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
-%>
 <jsp:include page="../iw/common/head.jsp">
 	<jsp:param name="title" value="编辑模版页面"/>
 </jsp:include>
-<script src="<%=basePath+Global.CACHE_FILE %>TemplatePage_type.js"></script>
+<script src="/<%=Global.CACHE_FILE %>TemplatePage_type.js"></script>
+<script src="/<%=Global.CACHE_FILE %>TemplatePage_editMode.js"></script>
 
 <form id="form" method="post" class="layui-form" style="padding:20px; padding-top:35px; margin-bottom: 0px; padding-bottom:0px;">
 	<input type="hidden" name="id" value="${templatePage.id}" />
@@ -22,6 +19,12 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
 		<label class="layui-form-label" id="label_name">模版页名称</label>
 		<div class="layui-input-block">
 			<input type="text" name="name" lay-verify="name" autocomplete="off" placeholder="限20个字符以内" class="layui-input" value="${templatePage.name }">
+		</div>
+	</div>
+	<div class="layui-form-item">
+		<label class="layui-form-label" id="label_editMode">编辑方式</label>
+		<div class="layui-input-block">
+			<script type="text/javascript">writeSelectAllOptionForeditMode_('${templatePage.editMode}', '请选择', true);</script>
 		</div>
 	</div>
 	<div class="layui-form-item">
@@ -65,6 +68,11 @@ layui.use(['form', 'layedit', 'laydate'], function(){
         return '请选择当前模版页类型';
       }
     },
+    editMode: function(value){
+      if(value.length == 0){
+        return '请选择模版页面的编辑方式';
+      }
+    },
     remark: function(value){
       if(value.length > 30){
       	return '请输入30个字以内的对当前模版页的备注';
@@ -76,7 +84,7 @@ layui.use(['form', 'layedit', 'laydate'], function(){
   form.on('submit(demo1)', function(data){
 		parent.iw.loading('保存中');
 		var d=$("form").serialize();
-        $.post("<%=basePath %>template/saveTemplatePage.do", d, function (result) { 
+        $.post("/template/saveTemplatePage.do", d, function (result) { 
         	parent.iw.loadClose();
         	var obj = JSON.parse(result);
         	if(obj.result == '1'){
@@ -114,7 +122,7 @@ $(function(){
 	//名字
 	var label_name_index = 0;
 	$("#label_name").hover(function(){
-		label_name_index = layer.tips('<ol style="list-style-type:demical"><li style="list-style-position:outside;">模版页面的名字，建议用英文、数字、"_" 来命名，强烈不建议用汉字。</li><li style="list-style-position:outside;"><b>添加后最好不要对其进行修改了！</b>栏目绑定的模版、备份还原模版页时，都是依据此处进行操作。</li></ol>', '#label_name', {
+		label_name_index = layer.tips('<ol style="list-style-type:demical"><li style="list-style-position:outside;">模版页面的名字，请用用英文、数字、"_" 来命名！</li><li style="list-style-position:outside;"><b>添加后最好不要对其进行修改了！</b>栏目绑定的模版、备份还原模版页时，都是依据此处进行操作。</li></ol>', '#label_name', {
 			tips: [2, '#0FA6A8'], //还可配置颜色
 			time:0,
 			tipsMore: true,
@@ -136,6 +144,20 @@ $(function(){
 	},function(){
 		layer.close(label_remark_index);
 	})
+	
+	//编辑方式
+	var label_editMode_index = 0;
+	$("#label_editMode").hover(function(){
+		label_editMode_index = layer.tips('模版页面的内容编辑方式：<br/><b>可视化编辑</b>：也就是智能模式，想改图片，右键修改-上传；想改文字，鼠标点击直接输入。<br/><b>纯代码编辑</b>：纯代码编辑，同传统的帝国CMS、织梦CMS的textarea文本框编辑。如果您之前使用过帝国、织梦，您可先用此种方式。另外，如果网站js效果很多，建议使用代码模式。', '#label_editMode', {
+			tips: [2, '#0FA6A8'], //还可配置颜色
+			time:0,
+			tipsMore: true,
+			area : ['230px' , 'auto']
+		});
+	},function(){
+		layer.close(label_editMode_index);
+	})
+	
 });	
 
 

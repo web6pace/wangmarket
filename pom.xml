@@ -45,6 +45,7 @@
                 <checksumPolicy>fail</checksumPolicy>
             </snapshots>
         </repository>
+        
 	</repositories>
    
   
@@ -88,7 +89,7 @@
 	            <configuration>
 	                <!-- 没有该配置，devtools 不生效 -->
 	                <fork>true</fork>
-	                <mainClass>com.xnx3.Application</mainClass>
+	                <mainClass>com.Application</mainClass>
 	            </configuration>
 	        </plugin>
 	        
@@ -122,7 +123,8 @@
                 <includes>  
                     <include>**/*.jar</include>  
                 </includes>  
-            </resource>  
+            </resource> 
+           
         </resources>  
 	</build>   
   
@@ -189,7 +191,7 @@
 		<dependency>
 		    <groupId>commons-fileupload</groupId>
 		    <artifactId>commons-fileupload</artifactId>
-		    <version>1.2.1</version>
+		    <version>1.3.3</version>
 		</dependency>
 			
 		<!-- 使用 jsp 必要依赖 -->  
@@ -270,7 +272,7 @@
 		<dependency>
 			<groupId>com.aliyun.openservices</groupId>
 			<artifactId>aliyun-log</artifactId>
-			<version>0.6.7</version>
+			<version>0.6.18</version>
 			<exclusions>
 			        <exclusion>
 			            <groupId>com.google.protobuf</groupId>
@@ -336,6 +338,16 @@
 		    <artifactId>springfox-swagger-ui</artifactId>
 		    <version>2.2.2</version>
 		</dependency>
+		
+		
+		
+		<!-- RabbitMQ -->
+		<dependency>
+		     <groupId>org.springframework.boot</groupId>
+		     <artifactId>spring-boot-starter-amqp</artifactId>
+		</dependency>
+
+		
 	    
 	    <!-- 本地的 -->
 	    <dependency> 
@@ -351,6 +363,23 @@
 	        <version>1.0</version>  
 	        <scope>system</scope>  
     		<systemPath>${project.basedir}/src/main/webapp/WEB-INF/lib/xnx3_tld.jar</systemPath>  
+	    </dependency>
+	    
+	    <!-- 一下三个是防xss -->
+	    
+	    <dependency> 
+	        <groupId>com.xnx3.antlrruntime</groupId>  
+	        <artifactId>xnx3_antlrruntime</artifactId>  
+	        <version>1.0</version>  
+	        <scope>system</scope>  
+    		<systemPath>${project.basedir}/src/main/webapp/WEB-INF/lib/antlr-runtime-3.0.1.jar</systemPath>  
+	    </dependency>
+	    <dependency> 
+	        <groupId>com.xnx3.xssProtect</groupId>  
+	        <artifactId>xnx3_xssProtect</artifactId>  
+	        <version>1.0</version>  
+	        <scope>system</scope>  
+    		<systemPath>${project.basedir}/src/main/webapp/WEB-INF/lib/xssProtect-0.1.jar</systemPath>  
 	    </dependency>
 		<!-- iw end --> 
        

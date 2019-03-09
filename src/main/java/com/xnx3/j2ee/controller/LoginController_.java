@@ -3,34 +3,34 @@ package com.xnx3.j2ee.controller;
 import java.awt.Font;
 import java.io.IOException;
 import java.util.List;
-
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.HttpSession;
 
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseBody;
-
 import com.xnx3.DateUtil;
 import com.xnx3.StringUtil;
+import com.xnx3.exception.NotReturnValueException;
 import com.xnx3.j2ee.Func;
 import com.xnx3.j2ee.Global;
 import com.xnx3.j2ee.entity.User;
 import com.xnx3.j2ee.func.ActionLogCache;
 import com.xnx3.j2ee.func.AttachmentFile;
 import com.xnx3.j2ee.func.Captcha;
-import com.xnx3.j2ee.func.Log;
-import com.xnx3.j2ee.service.SmsLogService;
 import com.xnx3.j2ee.service.SqlService;
 import com.xnx3.j2ee.service.UserService;
 import com.xnx3.j2ee.shiro.ShiroFunc;
 import com.xnx3.j2ee.vo.BaseVO;
+import com.xnx3.j2ee.vo.LoginVO;
 import com.xnx3.media.CaptchaUtil;
 import com.xnx3.wangmarket.admin.bean.UserBean;
 import com.xnx3.wangmarket.admin.entity.Site;
 import com.xnx3.wangmarket.superadmin.entity.Agency;
+import com.xnx3.wangmarket.superadmin.entity.AgencyData;
 
 /**
  * 登录、注册
@@ -41,8 +41,6 @@ import com.xnx3.wangmarket.superadmin.entity.Agency;
 public class LoginController_ extends com.xnx3.wangmarket.admin.controller.BaseController {
 	@Resource
 	private UserService userService;
-	@Resource
-	private SmsLogService smsLogService;
 	@Resource
 	private SqlService sqlService;
 	
@@ -86,19 +84,29 @@ public class LoginController_ extends com.xnx3.wangmarket.admin.controller.BaseC
 	 * 登陆请求验证
 	 * @param request {@link HttpServletRequest} 
 	 * 		<br/>登陆时form表单需提交三个参数：username(用户名/邮箱)、password(密码)、code（图片验证码的字符）
+	 * @return vo.result:
+	 * 			<ul>
+	 * 				<li>0:失败</li>
+	 * 				<li>1:成功</li>
+	 * 				<li>11:网站到期/代理到期</li>	
+	 * 			</ul>
 	 */
 	@RequestMapping("loginSubmit${url.suffix}")
 	@ResponseBody
-	public BaseVO loginSubmit(HttpServletRequest request,Model model){
+	public LoginVO loginSubmit(HttpServletRequest request,Model model){
+		LoginVO vo = new LoginVO();
+		
 		//验证码校验
 		BaseVO capVO = Captcha.compare(request.getParameter("code"), request);
 		if(capVO.getResult() == BaseVO.FAILURE){
 			ActionLogCache.insert(request, "用户名密码模式登录失败", "验证码出错，提交的验证码："+StringUtil.filterXss(request.getParameter("code")));
-			return capVO;
+			vo.setBaseVO(capVO);
+			return vo;
 		}else{
 			//验证码校验通过
 			
 			BaseVO baseVO =  userService.loginByUsernameAndPassword(request);
+			vo.setBaseVO(baseVO);
 			if(baseVO.getResult() == BaseVO.SUCCESS){
 				//登录成功,BaseVO.info字段将赋予成功后跳转的地址，所以这里要再进行判断
 				
@@ -110,7 +118,7 @@ public class LoginController_ extends com.xnx3.wangmarket.admin.controller.BaseC
 				//可以根据用户的不同权限，来判断用户登录成功后要跳转到哪个页面
 				if(Func.isAuthorityBySpecific(user.getAuthority(), Global.get("ROLE_SUPERADMIN_ID"))){
 					//如果是超级管理员，那么跳转到管理后台
-					baseVO.setInfo("admin/index/index.do");
+					vo.setInfo("admin/index/index.do");
 					ActionLogCache.insert(request, "用户名密码模式登录成功","进入管理后台admin/index/");
 				}else{
 					/* 自己扩展的 */
@@ -122,6 +130,12 @@ public class LoginController_ extends com.xnx3.wangmarket.admin.controller.BaseC
 						//得到上级的代理信息
 						Agency parentAgency = sqlService.findAloneBySqlQuery("SELECT * FROM agency WHERE userid = " + getUser().getReferrerid(), Agency.class);
 						userBean.setParentAgency(parentAgency);
+						
+						if(parentAgency != null){
+							//得到上级代理的变长表信息
+							AgencyData parentAgencyData = sqlService.findAloneBySqlQuery("SELECT * FROM agency_data WHERE id = " + parentAgency.getId(), AgencyData.class);
+							userBean.setParentAgencyData(parentAgencyData);
+						}
 					}
 					
 					//当前时间
@@ -139,7 +153,20 @@ public class LoginController_ extends com.xnx3.wangmarket.admin.controller.BaseC
 						
 						//判断网站用户是否是已过期，使用期满，将无法使用
 						if(site != null && site.getExpiretime() != null && site.getExpiretime() < currentTime){
-							return error("您的网站已到期。若要继续使用，请续费");
+							//您的网站已到期。若要继续使用，请续费
+							String info = "";
+							try {
+								info = "您的网站已于 "+DateUtil.dateFormat(site.getExpiretime(), "yyyy-MM-dd")+" 到期！"
+										+ "<br/>若要继续使用，请联系："
+										+ "<br/>姓名："+userBean.getParentAgency().getName()
+										+ "<br/>QQ："+userBean.getParentAgency().getQq()
+										+ "<br/>电话："+userBean.getParentAgency().getPhone();
+							} catch (NotReturnValueException e) {
+								e.printStackTrace();
+							}
+							vo.setBaseVO(11, info);
+							ShiroFunc.getCurrentActiveUser().setObj(null);  	//清空 Session信息
+							return vo;
 						}
 						
 						//计算其网站所使用的资源，比如OSS已占用了多少资源
@@ -152,26 +179,49 @@ public class LoginController_ extends com.xnx3.wangmarket.admin.controller.BaseC
 						//得到当前用户代理的相关信息，加入userBean，以存入Session缓存起来
 						Agency myAgency = sqlService.findAloneBySqlQuery("SELECT * FROM agency WHERE userid = " + getUserId(), Agency.class);
 						userBean.setMyAgency(myAgency);
+						if(myAgency != null){
+							//得到当前代理用户的变长表信息
+							AgencyData myAgencyData = sqlService.findAloneBySqlQuery("SELECT * FROM agency_data WHERE id = " + myAgency.getId(), AgencyData.class);
+							userBean.setMyAgencyData(myAgencyData);
+						}
 						
 						//判断当前代理是否是已过期，使用期满，将无法登录
 						if (myAgency != null && myAgency.getExpiretime() != null && myAgency.getExpiretime() < currentTime){
-							return error("您的代理资格已到期。若要继续使用，请联系您的上级");
+							//您的代理资格已到期。若要继续使用，请联系您的上级
+							//BaseVO vo = new BaseVO();
+							String info = "";
+							try {
+								info = "您的代理资格已于 "+DateUtil.dateFormat(myAgency.getExpiretime(), "yyyy-MM-dd")+" 到期！"
+										+ "<br/>若要继续使用，请联系："
+										+ "<br/>姓名："+userBean.getParentAgency().getName()
+										+ "<br/>QQ："+userBean.getParentAgency().getQq()
+										+ "<br/>电话："+userBean.getParentAgency().getPhone();
+							} catch (NotReturnValueException e) {
+								e.printStackTrace();
+							}
+							vo.setBaseVO(11, info);
+							ShiroFunc.getCurrentActiveUser().setObj(null);  	//清空 Session信息
+							return vo;
 						}
 						
 						ActionLogCache.insert(request, "用户名密码模式登录成功","进入代理后台");
 					}
 					
 					//设置登录成功后，是跳转到总管理后台、代理后台，还是跳转到wap、pc、cms
-					baseVO.setInfo(com.xnx3.wangmarket.admin.Func.getConsoleRedirectUrl());	
+					vo.setInfo(com.xnx3.wangmarket.admin.Func.getConsoleRedirectUrl());	
 				}
 				
 				//将用户相关信息加入Shiro缓存
 				ShiroFunc.getCurrentActiveUser().setObj(userBean);
+				
+				//将iwSID加入vo返回
+				HttpSession session = request.getSession();
+				vo.setIwSID(session.getId());
 			}else{
 				ActionLogCache.insert(request, "用户名密码模式登录失败",baseVO.getInfo());
 			}
 			
-			return baseVO;
+			return vo;
 		}
 	}
 

@@ -2,11 +2,6 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://www.xnx3.com/java_xnx3/xnx3_tld" prefix="x" %>
-<%
-//iw/admin/system/variableList.jsp
-String path = request.getContextPath();
-String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
-%>
 <jsp:include page="../../common/head.jsp">
 	<jsp:param name="title" value="系统参数"/>
 </jsp:include>
@@ -45,7 +40,7 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
 	   		<td id="xnx3_${system.name }"><x:substring maxLength="10" text="${system.value }"></x:substring></td>
 	        <td><x:substring maxLength="40" text="${system.description }"></x:substring></td>
 	        <td style="width:110px;">
-	        	<botton class="layui-btn layui-btn-sm" onclick="variable(${system.id }, '${system.name }');" style="margin-left: 3px;"><i class="layui-icon">&#xe642;</i></botton>
+	        	<botton class="layui-btn layui-btn-sm" onclick="variable('${system.name }');" style="margin-left: 3px;"><i class="layui-icon">&#xe642;</i></botton>
 	        	<botton class="layui-btn layui-btn-sm" onclick="deleteVariable(${system.id }, '${system.name }');" style="margin-left: 3px;"><i class="layui-icon">&#xe640;</i></botton>
 	        </td>
 	    </tr>
@@ -91,7 +86,7 @@ function deleteVariable(id,name){
 		
 		
 		parent.iw.loading("删除中");    //显示“操作中”的等待提示
-		$.post('<%=basePath %>admin/system/deleteVariable.do?id='+id, function(data){
+		$.post('/admin/system/deleteVariable.do?id='+id, function(data){
 		    parent.iw.loadClose();    //关闭“操作中”的等待提示
 		    if(data.result == '1'){
 		        parent.iw.msgSuccess('删除成功');
@@ -111,13 +106,13 @@ function deleteVariable(id,name){
  * 修改／新增变量
  * id 要修改的变量的id，若是为0，则是新增
  */
-function variable(id, name){
+function variable(name){
 	layer.open({
 		type: 2, 
-		title: id==0? '新增系统变量':'修改系统变量：&nbsp;&nbsp;'+name+'&nbsp;', 
+		title: name.length==0? '新增系统变量':'修改系统变量：&nbsp;&nbsp;'+name+'&nbsp;', 
 		area: ['380px', '370px'],
 		shadeClose: true, //开启遮罩关闭
-		content: '<%=basePath %>admin/system/variable.do?id='+id
+		content: '/admin/system/variable.do?name='+name
 	});
 }
 </script>

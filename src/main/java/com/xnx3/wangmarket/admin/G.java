@@ -16,8 +16,8 @@ import com.xnx3.wangmarket.admin.entity.Site;
  * @author 管雷鸣
  */
 public class G {
-	//当前的版本号。1.x为通用模版时代； 2.x为cms时代, 3.x 整体架构及云模块使用升级， 4.x整体架构升级，由深度依赖阿里云变为自有云。
-	public static final String VERSION = "4.1";	
+	//当前的版本号。1.x为通用模版时代； 2.x为cms时代, 3.x 整体架构及云模块使用升级， 4.x整体架构升级，由深度依赖阿里云抽离
+	public static final String VERSION = "4.8";	
 	
 	//云端域名。如，云端模版列表，则为 cloudDomain+"cloudTemplateList.do"
 	public static String cloudDomain = "http://wang.market/";
@@ -25,7 +25,7 @@ public class G {
 	public static int agencyAddSubAgency_siteSize = 20;	//代理开通下级代理，消耗20站币
 	
 	public static final boolean SITE_MYSELF_USED = true;	//网站是否是wang.market自己使用，若是，为true，若不是，是将其部署到其他的服务器上，则为false
-	public static final boolean SITE_DEPLOYMODE_SHARE = true;	//当前的部署模式，是否是共享一台服务器，即网站建设项目跟域名转发绑定都在一个项目里，都共用一个服务器。若是，则为true
+//	public static final boolean SITE_DEPLOYMODE_SHARE = true;	//当前的部署模式，是否是共享一台服务器，即网站建设项目跟域名转发绑定都在一个项目里，都共用一个服务器。若是，则为true
 	
 	//站点信息缓存
 	public static final String CACHE_FILE = "cache/data/";
@@ -74,10 +74,12 @@ public class G {
 	 * <br/>key：list.name
 	 * <br/>value：list.intro
 	 */
-	public static Map<String, String> cloudTemplateMap;
+	//public static Map<String, String> cloudTemplateMap;
 	
 	//webSocket IM的对接url
 //	public static String websocketUrl = "";
+	
+	public static boolean copyright = true;	//是否显示。
 	
 	static{
 		ConfigManagerUtil c = ConfigManagerUtil.getSingleton("wangMarketConfig.xml");
@@ -110,6 +112,11 @@ public class G {
 		}else{
 			Log.info("未开启Aliyun短信发送服务");
 		}
+		
+		String cr = c.getValue("copyright");
+		if(cr != null){
+			copyright = cr.equals("true");
+		}
 	}
 	
 	/**
@@ -121,24 +128,35 @@ public class G {
 	}
 	
 	
-	private static String  firstAutoAssignDomain;	//下面方法的持久化缓存
+	//private static String  firstAutoAssignDomain;	//下面方法的持久化缓存
 	/**
 	 * 获取主域名，即 AUTO_ASSIGN_DOMAIN 配置的第一个域名
 	 * 例如，Global.get("AUTO_ASSIGN_DOMAIN") 为 ： wang.market,wscso.com
 	 * @return 返回如 wang.market
 	 */
 	public static String getFirstAutoAssignDomain(){
-		if(firstAutoAssignDomain == null){
-			if(Global.get("AUTO_ASSIGN_DOMAIN") != null){
-				if(Global.get("AUTO_ASSIGN_DOMAIN").indexOf(",") > 0){
-					//如果有多个，那么只取第一个
-					String[] s = Global.get("AUTO_ASSIGN_DOMAIN").split(",");
-					firstAutoAssignDomain = s[0];
-				}else{
-					firstAutoAssignDomain = Global.get("AUTO_ASSIGN_DOMAIN");
-				}
+////		if(firstAutoAssignDomain == null){
+//			if(Global.get("AUTO_ASSIGN_DOMAIN") != null){
+//				if(Global.get("AUTO_ASSIGN_DOMAIN").indexOf(",") > 0){
+//					//如果有多个，那么只取第一个
+//					String[] s = Global.get("AUTO_ASSIGN_DOMAIN").split(",");
+//					firstAutoAssignDomain = s[0];
+//				}else{
+//					firstAutoAssignDomain = Global.get("AUTO_ASSIGN_DOMAIN");
+//				}
+//			}
+//		}
+		
+		if(Global.get("AUTO_ASSIGN_DOMAIN") != null){
+			if(Global.get("AUTO_ASSIGN_DOMAIN").indexOf(",") > 0){
+				//如果有多个，那么只取第一个
+				String[] s = Global.get("AUTO_ASSIGN_DOMAIN").split(",");
+				return s[0];
+			}else{
+				return Global.get("AUTO_ASSIGN_DOMAIN");
 			}
 		}
-		return firstAutoAssignDomain;
+		
+		return "请进入总管理后台，系统管理-系统变量下，修改变量名为 AUTO_ASSIGN_DOMAIN 的值";
 	}
 }

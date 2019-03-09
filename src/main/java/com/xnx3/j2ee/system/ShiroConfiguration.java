@@ -9,6 +9,7 @@ import org.apache.shiro.cache.ehcache.EhCacheManager;
 import org.apache.shiro.session.SessionListener;
 import org.apache.shiro.session.mgt.SessionManager;
 import org.apache.shiro.spring.LifecycleBeanPostProcessor;
+import org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor;
 import org.apache.shiro.spring.web.ShiroFilterFactoryBean;
 import org.apache.shiro.web.mgt.CookieRememberMeManager;
 import org.apache.shiro.web.mgt.DefaultWebSecurityManager;
@@ -43,7 +44,7 @@ public class ShiroConfiguration {
         //登录成功后要跳转的连接,逻辑也可以自定义，例如返回上次请求的页面
 //        shiroFilterFactoryBean.setSuccessUrl("/index");
         //用户访问未对其授权的资源时,所显示的连接
-        shiroFilterFactoryBean.setUnauthorizedUrl("/403");
+        shiroFilterFactoryBean.setUnauthorizedUrl("/403.do");
         /*定义shiro过滤器,例如实现自定义的FormAuthenticationFilter，需要继承FormAuthenticationFilter **本例中暂不自定义实现，在下一节实现验证码的例子中体现 */
 
         /*定义shiro过滤链 Map结构 * Map中key(xml中是指value值)的第一个'/'代表的路径是相对于HttpServletRequest.getContextPath()的值来的 * anon：它对应的过滤器里面是空的,什么都没做,这里.do和.jsp后面的*表示参数,比方说login.jsp?main这种 * authc：该过滤器下的页面必须验证后才能访问,它是Shiro内置的一个拦截器org.apache.shiro.web.filter.authc.FormAuthenticationFilter */
@@ -70,12 +71,27 @@ public class ShiroConfiguration {
         filterChainDefinitionMap.put("/upload/**", "anon");
         filterChainDefinitionMap.put("/ueditor/**", "anon");
         filterChainDefinitionMap.put("/module/ueditor/dialogs/**", "anon");
-        filterChainDefinitionMap.put("/bbs/list.do", "anon");
-        filterChainDefinitionMap.put("/bbs/view.do", "anon");
+//        filterChainDefinitionMap.put("/bbs/list.do", "anon");
+//        filterChainDefinitionMap.put("/bbs/view.do", "anon");
+        filterChainDefinitionMap.put("/plugin/api/*.do", "anon");
+        
+        //plugin bbs
+        filterChainDefinitionMap.put("/plugin/bbs/*.do", "anon");
+        
+        //plugin 插件，都是可公开访问，自行在其中加是否登陆验证
+        filterChainDefinitionMap.put("/plugin/**", "anon");
+        
+        //网站模版,v4.7增加的模版开发模式，模版放到本地
+        filterChainDefinitionMap.put("/websiteTemplate/**", "anon");
+        
         filterChainDefinitionMap.put("/*.*", "anon");
         
         //750套模板
         filterChainDefinitionMap.put("/template/templateExternalList.do", "anon");
+        
+        //模版列表接口，v4.8增加
+        filterChainDefinitionMap.put("/template/getTemplateList.do", "anon");
+        
         
         //因为如果用本地存储的话，生成的网站页面、上传图片，都会存储到网站根目录下site文件夹中，所以要对非.do结尾的文件，不能拦截
 //        filterChainDefinitionMap.put("/site/*.do", "authc");
@@ -220,6 +236,16 @@ public class ShiroConfiguration {
         return advisorAutoProxyCreator;
     }
     
-
+    /*
+     * 开启shiro aop注解支持 使用代理方式;所以需要开启代码支持;
+     * 加入注解的使用，不加入这个注解不生效
+     */
+    @Bean
+    public AuthorizationAttributeSourceAdvisor authorizationAttributeSourceAdvisor(
+          DefaultWebSecurityManager securityManager) {
+       AuthorizationAttributeSourceAdvisor authorizationAttributeSourceAdvisor = new AuthorizationAttributeSourceAdvisor();
+       authorizationAttributeSourceAdvisor.setSecurityManager(securityManager);
+       return authorizationAttributeSourceAdvisor;
+    }
 	
 }

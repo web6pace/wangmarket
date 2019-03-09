@@ -7,6 +7,7 @@ import com.xnx3.wangmarket.admin.Func;
 import com.xnx3.wangmarket.admin.bean.UserBean;
 import com.xnx3.wangmarket.admin.entity.Site;
 import com.xnx3.wangmarket.superadmin.entity.Agency;
+import com.xnx3.wangmarket.superadmin.entity.AgencyData;
 
 public class BaseController extends com.xnx3.j2ee.controller.BaseController {
 	
@@ -18,13 +19,36 @@ public class BaseController extends com.xnx3.j2ee.controller.BaseController {
 		return Func.getUserBeanForShiroSession();
 	}
 	
+	/**
+	 * 获取get、post传递的参数
+	 * @param request
+	 * @param name 参数名
+	 * @return 值，若没有，则返回空字符串 ""
+	 */
+	public String getRequestParam(HttpServletRequest request, String name){
+		if(name == null){
+			return "";
+		}
+		if(request.getParameter(name) == null){
+			return "";
+		}
+		return request.getParameter(name);
+	}
 
 	/**
-	 * 获取当前登陆用户的上级用户代理信息。如果当前用户的上级有，且是代理的话
+	 * 获取当前登陆用户的上级用户代理信息的变长表 (agency_data) 数据。如果当前用户的上级有，且是代理的话
 	 * @return {@link Agency} 或 null
 	 */
 	public Agency getParentAgency(){
 		return com.xnx3.wangmarket.superadmin.Func.getParentAgency();
+	}
+	
+	/**
+	 * 获取当前登陆用户的上级用户代理信息。如果当前用户的上级有，且是代理的话
+	 * @return {@link Agency} 或 null
+	 */
+	public AgencyData getParentAgencyData(){
+		return com.xnx3.wangmarket.superadmin.Func.getParentAgencyData();
 	}
 	
 	/**
@@ -38,6 +62,19 @@ public class BaseController extends com.xnx3.j2ee.controller.BaseController {
 		}else{
 			return userBean.getSite();
 		}
+	}
+	
+	/**
+	 * 设置 site 信息。当 site 数据表有更改后，可以执行此来刷新session存储的site信息
+	 */
+	public void setSite(Site site){
+		UserBean userBean = getUserBean();
+		if(userBean == null || userBean.getSite() == null){
+			return;
+		}else{
+			userBean.setSite(site);;
+		}
+		
 	}
 	
 	/**

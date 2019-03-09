@@ -32,14 +32,23 @@ public interface UserService {
 	public BaseVO loginByUsernameAndPassword(HttpServletRequest request);
 	
 	/**
-	 * 手机号＋动态验证码登陆
+	 * 用户名＋密码 进行登陆
+	 * @param username 登陆的用户名或邮箱
+	 * @param password 登陆的密码，明文密码，原始密码，用户登陆输入的密码
+	 * @return {@link BaseVO}
+	 */
+	public BaseVO loginByUsernameAndPassword(HttpServletRequest request, String username, String password);
+	
+	
+	/**
+	 * 手机号＋动态验证码登陆。
 	 * 		<br/>登陆时form表单需提交两个参数：phone(手机号)、code(手机收到的动态验证码)
 	 * @return {@link BaseVO}
 	 */
 	public BaseVO loginByPhoneAndCode(HttpServletRequest request);
 	
 	/**
-	 * 传入一个用户id，使当前登陆的用户为此用户。
+	 * 传入一个用户id，使当前登陆的用户为此用户。会自动判断当前登陆的ip地址，是否跟此用户最后一次登陆的ip相同。若相同，则可以登陆成功。若不相同，则登陆不成功。
 	 * @param userid 要登陆的用户的user.id
 	 * @return {@link BaseVO}
 	 */
@@ -67,7 +76,7 @@ public interface UserService {
 	
 	/**
 	 * 注册
-	 * <br/>会自动先监测用户名、邮箱、密码是否都有输入。若其中有的没有输入，则拦截返回提示信息
+	 * <br/>用户名、密码为必填，其余可不填。会自动先监测用户名、密码是否都有输入。若其中有的没有输入，则拦截返回提示信息。
 	 * <br/>自动确认用户名、邮箱、手机号(若填写了)的唯一性，若不是，返回已使用提示信息
 	 * <br/><b>用户名、邮箱、密码这三项为必填，通过user传入</b>
 	 * @param user {@link User} 
@@ -136,8 +145,9 @@ public interface UserService {
 	public BaseVO updateSex(HttpServletRequest request);
 	
 	/**
-	 * 修改昵称
+	 * 修改昵称 ，会自动进行 xss 过滤
 	 * @param request GET／POST传入如： nickname=管雷鸣  不允许为空。字符限制1～15个汉字或英文
+	 * @return 若result为SUCCESS，则info返回修改成功的昵称
 	 */
 	public BaseVO updateNickname(HttpServletRequest request);
 	
@@ -177,4 +187,12 @@ public interface UserService {
 	 * @return 头像的绝对路径网址，如 http://res.weiunity.com/image/imqq.jpg
 	 */
 	public String getHead(String defaultHead);
+	
+	/**
+	 * 用明文密码+ salt ，生成 User.password 中， 加密后的密码
+	 * @param originalPassword 明文密码
+	 * @param salt 盐
+	 * @return MD5加密后的密码
+	 */
+	public String generateMd5Password(String originalPassword, String salt);
 }

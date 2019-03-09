@@ -9,6 +9,7 @@ import com.baidu.ueditor.define.State;
 import com.baidu.ueditor.hunter.FileManager;
 import com.baidu.ueditor.hunter.ImageHunter;
 import com.baidu.ueditor.upload.Uploader;
+import com.xnx3.j2ee.Global;
 import com.xnx3.j2ee.func.Log;
 
 public class ActionEnter {
@@ -23,12 +24,26 @@ public class ActionEnter {
 
 	public ActionEnter ( HttpServletRequest request, String rootPath ) {
 		
+		//v4.8 增加，避免开发模式下，ue上传会上传到src/main/webapp下的问题
+		int smw = rootPath.indexOf("/src/main/webapp/");
+		// 17 是 /src/main/webapp/ 这个字符的长度
+		if(smw > -1 && smw + 17 == rootPath.length()){
+			//初步判定是在开发环境
+			
+			//获取当前路径，进而确认是否真的是开发模式
+			String path = Global.getProjectPath();
+			if(path.indexOf("/target/classes/") + 16 == path.length()){
+				rootPath = path;
+			}
+		}
+		
+		
 		this.request = request;
 		this.rootPath = rootPath;
 		this.actionType = request.getParameter( "action" );
 		this.contextPath = request.getContextPath();
-		Log.debug(ConfigManager.getInstance( this.rootPath, this.contextPath, request.getRequestURI() ).toString());
-		Log.debug("request.getRequestURI() -- > "+request.getRequestURI());
+//		Log.debug(ConfigManager.getInstance( this.rootPath, this.contextPath, request.getRequestURI() ).toString());
+//		Log.debug("request.getRequestURI() -- > "+request.getRequestURI());
 		
 		this.configManager = ConfigManager.getInstance( this.rootPath, this.contextPath, request.getRequestURI() );
 		
@@ -53,9 +68,9 @@ public class ActionEnter {
 	}
 	
 	public String invoke() {
-		Log.debug("invoke--into");
-		Log.debug("actionType -- "+actionType);
-		Log.debug("configManager -- "+this.configManager);
+//		Log.debug("invoke--into");
+//		Log.debug("actionType -- "+actionType);
+//		Log.debug("configManager -- "+this.configManager);
 		if ( actionType == null || !ActionMap.mapping.containsKey( actionType ) ) {
 			return new BaseState( false, AppInfo.INVALID_ACTION ).toJSONString();
 		}
@@ -70,7 +85,7 @@ public class ActionEnter {
 		
 		Map<String, Object> conf = null;
 		
-		Log.debug("invoke--switch before actionCode: "+actionCode);
+//		Log.debug("invoke--switch before actionCode: "+actionCode);
 		switch ( actionCode ) {
 		
 			case ActionMap.CONFIG:
@@ -80,7 +95,7 @@ public class ActionEnter {
 			case ActionMap.UPLOAD_SCRAWL:
 			case ActionMap.UPLOAD_VIDEO:
 			case ActionMap.UPLOAD_FILE:
-				Log.debug("invoke--UPLOAD_IMAGE--actionCode: "+actionCode);
+//				Log.debug("invoke--UPLOAD_IMAGE--actionCode: "+actionCode);
 				conf = this.configManager.getConfig( actionCode );
 				state = new Uploader( request, conf ).doExec();
 				break;

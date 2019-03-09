@@ -56,13 +56,11 @@ public class AdminSiteController extends BaseController {
 	/**
 	 * 网站详情
 	 * @param id News.id
-	 * @param model
-	 * @return
 	 */
 	@RequiresPermissions("adminSiteView")
 	@RequestMapping("view${url.suffix}")
 	public String view(@RequestParam(value = "id", required = true , defaultValue="") int id, Model model){
-		Site site = (Site) sqlService.findById(Site.class, id);
+		Site site = sqlService.findById(Site.class, id);
 		
 		model.addAttribute("site", site);
 		return "admin/site/view";

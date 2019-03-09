@@ -1,6 +1,8 @@
 package com.xnx3.wangmarket.admin.controller;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
@@ -14,6 +16,7 @@ import org.springframework.web.bind.annotation.ResponseBody;
 
 import com.xnx3.StringUtil;
 import com.xnx3.j2ee.service.SqlService;
+import com.xnx3.j2ee.shiro.ShiroFunc;
 import com.xnx3.j2ee.util.Page;
 import com.xnx3.j2ee.util.Sql;
 import com.xnx3.j2ee.vo.BaseVO;
@@ -22,6 +25,7 @@ import com.xnx3.wangmarket.admin.Func;
 import com.xnx3.wangmarket.admin.G;
 import com.xnx3.wangmarket.admin.cache.GenerateHTML;
 import com.xnx3.wangmarket.admin.cache.Template;
+import com.xnx3.wangmarket.admin.cache.TemplateCMS;
 import com.xnx3.wangmarket.admin.cache.pc.IndexAboutUs;
 import com.xnx3.wangmarket.admin.cache.pc.IndexNews;
 import com.xnx3.wangmarket.admin.entity.InputModel;
@@ -36,6 +40,8 @@ import com.xnx3.wangmarket.admin.service.SiteColumnService;
 import com.xnx3.wangmarket.admin.service.SiteService;
 import com.xnx3.wangmarket.admin.service.TemplateService;
 import com.xnx3.wangmarket.admin.util.AliyunLog;
+import com.xnx3.wangmarket.admin.util.TemplateUtil;
+import com.xnx3.j2ee.Global;
 import com.xnx3.j2ee.func.AttachmentFile;
 import com.xnx3.wangmarket.admin.vo.SiteColumnTreeVO;
 import com.xnx3.wangmarket.admin.vo.TemplatePageListVO;
@@ -72,8 +78,8 @@ public class ColumnController extends BaseController {
 	    sql.appendWhere("userid = "+getUserId());
 	    //查询log数据表的记录总条数
 	    int count = sqlService.count("site_column", sql.getWhere());
-	    //每页显示15条
-	    Page page = new Page(count, 15, request);
+	    //每页显示300条
+	    Page page = new Page(count, 300, request);
 	    //创建查询语句，只有SELECT、FROM，原生sql查询。其他的where、limit等会自动拼接
 	    sql.setSelectFromAndPage("SELECT * FROM site_column", page);
 	    
@@ -106,8 +112,8 @@ public class ColumnController extends BaseController {
 	    sql.appendWhere("siteid = "+getSiteId()+" AND userid = "+getUserId());
 	    //查询log数据表的记录总条数
 	    int count = sqlService.count("site_column", sql.getWhere());
-	    //每页显示15条
-	    Page page = new Page(count, 200, request);
+	    //每页显示300条
+	    Page page = new Page(count, 300, request);
 	    //创建查询语句，只有SELECT、FROM，原生sql查询。其他的where、limit等会自动拼接
 	    sql.setSelectFromAndPage("SELECT * FROM site_column", page);
 	    
@@ -272,6 +278,24 @@ public class ColumnController extends BaseController {
 				return error(model, "栏目不属于你，无法修改");
 			}
 			
+			//type_list 是v4.6 针对CMS模式新增加的状态，以此替代原本的新闻信息、图文信息两种类型。这里是对以前版本的兼容，判断是属于哪种类型，将其设置到最新的
+			if(siteColumn.getType() - SiteColumn.TYPE_NEWS == 0){
+				siteColumn.setEditUseText(SiteColumn.USED_ENABLE);
+				siteColumn.setType(SiteColumn.TYPE_LIST);
+				sqlService.save(siteColumn);
+			}
+			if(siteColumn.getType() - SiteColumn.TYPE_IMAGENEWS == 0){
+				siteColumn.setEditUseText(SiteColumn.USED_ENABLE);
+				siteColumn.setEditUseTitlepic(SiteColumn.USED_ENABLE);
+				siteColumn.setType(SiteColumn.TYPE_LIST);
+				sqlService.save(siteColumn);
+			}
+			if(siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
+				siteColumn.setEditUseText(SiteColumn.USED_ENABLE);
+				siteColumn.setType(SiteColumn.TYPE_ALONEPAGE);
+				sqlService.save(siteColumn);
+			}
+			
 			if(isCopy == 1){
 				/**
 				 * 复制栏目
@@ -297,6 +321,9 @@ public class ColumnController extends BaseController {
 			siteColumn = new SiteColumn();
 			siteColumn.setType(SiteColumn.TYPE_NEWS);//默认为新闻类型
 			siteColumn.setParentid(0); //默认为顶级栏目
+			siteColumn.setEditUseText(SiteColumn.USED_ENABLE);//内容正文默认是都显示的
+			siteColumn.setEditMode(SiteColumn.EDIT_MODE_INPUT_MODEL);//编辑方式，，默认使用内容管理方式编辑
+			siteColumn.setUseGenerateView(SiteColumn.USED_ENABLE);	//是否生成内容页面，默认是生成的
 		}
 
 		//获取用户当前的模版页面列表
@@ -397,6 +424,20 @@ public class ColumnController extends BaseController {
 		
 		AliyunLog.addActionLog(getSiteId(), "CMS模式下，添加、修改栏目");
 		
+		/*
+		 * 设置标题图片上传相关,v4.7增加
+		 */
+		//可上传的后缀列表
+		model.addAttribute("ossFileUploadImageSuffixList", Global.ossFileUploadImageSuffixList);
+		//可上传的文件最大大小(KB)
+		model.addAttribute("maxFileSizeKB", AttachmentFile.getMaxFileSizeKB());
+		//设置上传后的图片、附件所在的个人路径
+		ShiroFunc.getCurrentActiveUser().setUeUploadParam1(site.getId()+"");
+		//实际上 sitecolumn.icon 图片的地址，替换掉动态标签的绝对路径 （原本数据库中存储的是可带有动态标签的，模版开发人员可以使用{templatePath}标签来填写icon的图片文件所在路径）
+		TemplateCMS templateCMS = new TemplateCMS(site, TemplateUtil.getTemplateByName(site.getTemplateName()));
+		String icon = (siteColumn.getIcon() == null? "":siteColumn.getIcon()).replace("{templatePath}", templateCMS.getTemplatePath() + site.getTemplateName() + "/");
+		model.addAttribute("icon", icon);
+		
 		model.addAttribute("parentColumnOption", parentColumn.toString());
 		model.addAttribute("site", site);
 		model.addAttribute("siteColumn", siteColumn);
@@ -427,7 +468,7 @@ public class ColumnController extends BaseController {
 		AliyunLog.addActionLog(siteColumn.getId(), "保存栏目："+siteColumn.getName());
 		
 		//如果这个栏目是独立页面，那么判断是否有了这个独立页面，若没有，自动建立一个
-		if(siteColumn.getType() == SiteColumn.TYPE_PAGE){
+		if(siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
 			siteColumnService.createNonePage(siteColumn,site,updateName);
 		}
 		//生成栏目页面
@@ -486,7 +527,7 @@ public class ColumnController extends BaseController {
 		}
 		
 		//标题，名字
-		String name = filter(StringUtil.filterHtmlTag(siteColumn.getName()));
+		String name = StringUtil.filterXss(siteColumn.getName());
 		if(name == null || name.length()<1){
 			vo.setBaseVO(BaseVO.FAILURE, "您要创建的导航栏目叫什么名字呢");
 			return vo;
@@ -498,6 +539,7 @@ public class ColumnController extends BaseController {
 		SiteColumn sc = new SiteColumn();
 		String oldCodeName = null;	//旧的栏目代码内容，数据库中原本存储的栏目代码的内容。若为null，则是新增的
 		if(siteColumn.getId() != null && siteColumn.getId() > 0){
+			//修改栏目
 			addColumn = false;
 			sc = sqlService.findById(SiteColumn.class, siteColumn.getId());
 			if(sc.getSiteid() - site.getId() != 0){
@@ -509,6 +551,7 @@ public class ColumnController extends BaseController {
 			}
 			oldCodeName = sc.getCodeName();
 		}else{
+			//新增栏目
 			sc.setUserid(getUserId());
 			sc.setSiteid(site.getId());
 			sc.setRank(0);
@@ -516,16 +559,24 @@ public class ColumnController extends BaseController {
 		
 		sc.setName(name);
 //		sc.setRank(siteColumn.getRank());
-		sc.setUrl(filter(siteColumn.getUrl()));
+		sc.setUrl(filter(siteColumn.getUrl()));	//没用了的，废弃的
 		sc.setUsed(siteColumn.getUsed() == null? 1:siteColumn.getUsed());
 		sc.setType(siteColumn.getType());
-		sc.setTemplatePageListName(filter(siteColumn.getTemplatePageListName()));
-		sc.setTemplatePageViewName(filter(siteColumn.getTemplatePageViewName()));
+		sc.setTemplatePageListName(StringUtil.filterXss(siteColumn.getTemplatePageListName()));
+		sc.setTemplatePageViewName(StringUtil.filterXss(siteColumn.getTemplatePageViewName()));
 		sc.setListNum(siteColumn.getListNum() == null ? 10:siteColumn.getListNum());
 		sc.setEditMode(siteColumn.getEditMode() == null ? SiteColumn.EDIT_MODE_INPUT_MODEL : siteColumn.getEditMode());
+		sc.setListRank(siteColumn.getListRank() == null? SiteColumn.LIST_RANK_ADDTIME_DESC:siteColumn.getListRank());
+		sc.setEditUseExtendPhotos(siteColumn.getEditUseExtendPhotos() == null? SiteColumn.USED_UNABLE:siteColumn.getEditUseExtendPhotos());
+		sc.setEditUseIntro(siteColumn.getEditUseIntro() == null? SiteColumn.USED_UNABLE:siteColumn.getEditUseIntro());
+		sc.setEditUseText(siteColumn.getEditUseText() == null? SiteColumn.USED_UNABLE:siteColumn.getEditUseText());
+		sc.setEditUseTitlepic(siteColumn.getEditUseTitlepic() == null? SiteColumn.USED_UNABLE:siteColumn.getEditUseTitlepic());
+		//v4.7
+		sc.setUseGenerateView(siteColumn.getUseGenerateView() == null? SiteColumn.USED_ENABLE:siteColumn.getUseGenerateView());
+		sc.setIcon(siteColumn.getIcon());
 		
 		//判断一下选择的输入模型是否符合
-		String inputModelCodeName = StringUtil.filterHtmlTag(siteColumn.getInputModelCodeName());
+		String inputModelCodeName = StringUtil.filterXss(siteColumn.getInputModelCodeName());
 		if(inputModelCodeName == null || inputModelCodeName.length() == 0 || inputModelCodeName.equals("0")){
 			//使用系统默认输入模型(为0代表是系统模型，因为layui中，如果value没有值的话，系统模型是无法出现选择的)
 			sc.setInputModelCodeName(null);
@@ -575,7 +626,7 @@ public class ColumnController extends BaseController {
 							return error("目前系统暂时只支持一级子栏目，当前此栏目已经有下级栏目了，无法再作为子栏目");
 						}
 						
-						sc.setParentCodeName(filter(siteColumn.getParentCodeName()));
+						sc.setParentCodeName(StringUtil.filterXss(siteColumn.getParentCodeName()));
 						sc.setParentid(s.getId());
 					}
 				}
@@ -586,7 +637,7 @@ public class ColumnController extends BaseController {
 				if(siteColumn.getCodeName().length() == 0){
 					sc.setCodeName("");
 				}else{
-					sc.setCodeName(filter(siteColumn.getCodeName()));
+					sc.setCodeName(StringUtil.filterXss(siteColumn.getCodeName()));
 					
 					//查询当前网站codeName是否被占用了，v2.26更改，有数据库查询改为从内存中判断
 					List<SiteColumn> sclistCache = siteColumnService.getSiteColumnListByCache();
@@ -609,18 +660,24 @@ public class ColumnController extends BaseController {
 			sc.setParentid(0);		//父栏目id，通用模版只有一级栏目
 		}
 		
-		String oldIconName = sc.getIcon();	//旧的栏目导航图名字
-		
 		//上传图标，并进行压缩处理
-		UploadFileVO upload= AttachmentFile.uploadImage("site/"+site.getId()+"/column_icon/", request, "iconFile", G.SITECOLUMN_ICON_MAXWIDTH);
-		if(upload.getResult() == BaseVO.SUCCESS){
-			sc.setIcon(upload.getFileName());
+		if(!StringUtil.StringEqual(sc.getIcon(), siteColumn.getIcon())){
+			//如果是已经上传了新的，那么删除之前传的那个icon文件
+			if(sc.getIcon() != null){
+				String us[] = sc.getIcon().split("/site/"+site.getId()+"/news/");
+				if(us.length > 1 && us[0].equals(Global.get("ATTACHMENT_FILE_URL"))){
+					AttachmentFile.deleteObject("site/"+site.getId()+"/news/"+us[1]);
+				}
+			}
+			
+			//设置上最新的
+			sc.setIcon(siteColumn.getIcon());
 		}
 
 		sqlService.save(sc);
 		if(sc.getId() > 0){
 			//如果这个栏目是独立页面，那么判断是否有了这个独立页面，若没有，自动建立一个
-			if(sc.getType() == SiteColumn.TYPE_PAGE){
+			if(sc.getType() - SiteColumn.TYPE_PAGE == 0 || sc.getType() - SiteColumn.TYPE_ALONEPAGE == 0){
 				//判断一下，这个独立页面的内容编辑方式，如果是模版编辑方式，那么是不用创建news的
 				if(sc.getEditMode() - SiteColumn.EDIT_MODE_TEMPLATE == 0){
 					//模版编辑方式，忽略
@@ -685,13 +742,6 @@ public class ColumnController extends BaseController {
 							IndexNews.refreshIndexData(site, sc, newsList);
 						}
 					}
-				}
-			}
-			
-			//删除之前传的那个icon文件
-			if(!(oldIconName == null || oldIconName.length() == 0)){
-				if(oldIconName.indexOf("/") == -1){
-					AttachmentFile.deleteObject("site/"+site.getId()+"/column_icon/"+oldIconName);
 				}
 			}
 			
@@ -952,11 +1002,27 @@ public class ColumnController extends BaseController {
 			return error("栏目不属于你，无法删除");
 		}
 		
+		//判断其下是否还有子栏目，如果还有子栏目，则会将其下的所有子栏目一快删除
+		Map<String, Object> parameterMap = new HashMap<String, Object>();
+		parameterMap.put("parentCodeName", siteColumn.getCodeName());
+		List<SiteColumn> subList = sqlService.findByHql("FROM SiteColumn sc WHERE sc.siteid = "+siteColumn.getSiteid()+" AND sc.parentCodeName = :parentCodeName", parameterMap);
+		for (int i = 0; i < subList.size(); i++) {
+			//如果有子栏目，那么删除子栏目
+			sqlService.delete(subList.get(i));
+		}
+
+		//删除当前要删除的栏目
 		sqlService.delete(siteColumn);
 		
 		//判断一下，如果是CMS模式下，还要将缓存中的栏目删除掉
 		if(Func.isCMS(getSite())){
-			siteColumnService.deleteSiteColumnByCache(siteColumn.getId());
+			if(subList.size() > 0){
+				//如果有子栏目，那么直接吧全部栏目缓存重新进行缓存
+				siteColumnService.refreshCache();
+			}else{
+				//如果就只有一个栏目，那么直接去掉这一个栏目的缓存即可
+				siteColumnService.deleteSiteColumnByCache(siteColumn.getId());
+			}
 		}
 		
 		AliyunLog.addActionLog(siteColumn.getId(), "删除栏目："+siteColumn.getName());

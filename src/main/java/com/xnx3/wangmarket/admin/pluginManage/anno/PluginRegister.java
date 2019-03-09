@@ -37,20 +37,63 @@ public @interface PluginRegister {
 	String menuHref() default "";
 	
 	/**
-	 * 是否适用于CMS类型网站管理后台， true：是, 不填默认是false
+	 * 是否在CMS模式网站管理后台的功能插件中显示， true：是, 不填默认是false
 	 * @return
 	 */
 	boolean applyToCMS() default false;
 	
 	/**
-	 * 是否适用于PC类型网站管理后台， true：是, 不填默认是false
+	 * 是否在电脑(pc)模式网站管理后台的功能插件中显示， true：是, 不填默认是false
 	 * @return
 	 */
 	boolean applyToPC() default false;
 	
 	/**
-	 * 是否适用于WAP类型网站管理后台， true：是, 不填默认是false
+	 * 是否在手机(wap)模式网站管理后台的功能插件中显示， true：是, 不填默认是false
 	 * @return
 	 */
 	boolean applyToWAP() default false;
+	
+	/**
+	 * 是否在代理后台的功能插件中显示， true：是, 不填默认是false
+	 * @return
+	 */
+	boolean applyToAgency() default false;
+	
+	/**
+	 * 是否在总管理后台的功能插件中显示， true：是, 不填默认是false
+	 * @return
+	 */
+	boolean applyToSuperAdmin() default false;
+	
+	/**
+	 * 该插件的简介说明
+	 * @return
+	 */
+	String intro() default "";
+	
+	/**
+	 * 该插件的详情说明的网址，点击后进入这个url查看详细说明
+	 * @return
+	 */
+	String detailUrl() default "";
+	
+	/**
+	 * 当前插件的版本号 ， 如  1.0
+	 * @return
+	 */
+	String version() default "";
+	
+	/**
+	 * 远程版本检测的url地址    
+	 * <br/> 其内返回值为 最新版本号|提示有新版本后点击进入的网址|  如： 1.0|http://www.wang.market/wangmarket.html|
+	 * @return
+	 */
+	String versionCheckUrl() default "";
+	
+	/**
+	 * 最低支持的版本, 填写如 4.7  ，v4.7增加
+	 */
+	String versionMin() default "";
+	
 }

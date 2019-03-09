@@ -1,4 +1,5 @@
 package com.xnx3.j2ee.dao;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -166,23 +167,40 @@ public class SqlDAO {
 //	}
 
 	/**
-	 * 根据字段名查值
+	 * 根据字段名查值。value会自动进行sql注入过滤
 	 * @param c {@link Class} 实体类，如 {@link User}.class
 	 * @param propertyName 数据表字段名(Hibernate 语句的字段名)
 	 * @param value 值
 	 * @return {@link List} 实体类
 	 */
 	public <E> List<E> findByProperty(Class<E> c,String propertyName, Object value) {
-		String whereValue = "";	//查询的值。若是字符，则自动拼接上''
-		
-		//获取type的类型，根据类型，来决定where的组合
-		String type = value.getClass().getTypeName();
-		if(type.equalsIgnoreCase("java.lang.String")){
-			whereValue = "'" + value.toString() + "'";
+		String hql = "FROM "+c.getSimpleName()+" c WHERE c."+propertyName+" = :c1";
+ 		Map<String, Object> parameterMap = new HashMap<String, Object>();
+		parameterMap.put("c1", value);
+		return findByHql(hql, parameterMap, 0);
+	}
+	
+	
+	/**
+	 * 根据字段名查一条值，取一条记录。 value会自动进行sql注入过滤
+	 * @param c {@link Class} 实体类，如 {@link User}.class
+	 * @param propertyName 数据表字段名(Hibernate 语句的字段名)
+	 * @param value 值
+	 * @return {@link List} 实体类 。 若没有查到，则返回null
+	 */
+	public <E> E findAloneByProperty(Class<E> c,String propertyName, Object value){
+		String hql = "FROM "+c.getSimpleName()+" c WHERE c."+propertyName+" = :c1";
+		javax.persistence.Query query=entityManager.createQuery(hql);
+		query.setParameter("c1", value);
+	    query.setMaxResults(1);
+		List<E> list= query.getResultList();
+//        entityManager.close();
+        
+		if(list.size() > 0){
+			return list.get(0);
 		}else{
-			whereValue = value.toString();
+			return null;
 		}
-		return findBySqlQuery("SELECT * FROM "+getDatabaseTableName(c) + " WHERE "+propertyName+" = "+whereValue, c);
 	}
 	
 	/**
@@ -251,18 +269,73 @@ public class SqlDAO {
 	 * </pre>
 	 * @param hql hql语句，如 FROM User
 	 * @param parameterMap hql中的查询条件
+	 * @param maxNumber 最大查询条数，同 limit ， 0为不限制
 	 * @return list
 	 */
-    public List findByHql(String hql, Map<String, Object> parameterMap) {
+    public List findByHql(String hql, Map<String, Object> parameterMap, int maxNumber) {
         javax.persistence.Query query=entityManager.createQuery(hql);
         for (Map.Entry<String, Object> entry : parameterMap.entrySet()) {
         	query.setParameter(entry.getKey(),entry.getValue());
+        }
+        if(maxNumber > 0){
+        	query.setMaxResults(maxNumber);
         }
         List list= query.getResultList();
         entityManager.close();
         return list;
     }
 	
+    /**
+	 * 通过hql语句执行sql。示例：
+	 * <pre>
+	 * 		String hql = "update User u set u.nickname=:nickname WHERE u.username = :username";
+	 * 		Map&lt;String, Object&gt; parameterMap = new HashMap&lt;String, Object&gt;();
+     *		parameterMap.put("nickname", "guan");
+     *		parameterMap.put("username", "guanleiming");
+     *		executeByHql(hql, parameterMap)
+	 * </pre>
+	 * @param hql 执行的hql语句，如 update User u set u.nickname=:nickname WHERE u.id = 1
+	 * @param parameterMap hql中的变量值
+	 * @return 执行此语句后，数据库中更新的记录条数
+	 */
+    public int executeByHql(String hql, Map<String, Object> parameterMap) {
+    	System.out.println(hql);
+        javax.persistence.Query query=entityManager.createQuery(hql);
+        for (Map.Entry<String, Object> entry : parameterMap.entrySet()) {
+        	query.setParameter(entry.getKey(),entry.getValue());
+        }
+        return query.executeUpdate();
+    }
+	
+    
+
+    /**
+	 * HQL update语句，更改值。会自动进行sql注入过滤。
+	 * <br/>其组合的hql语句便是：
+	 * <pre>
+	 * update Template c set t.setPropertyName = setPropertyValue WHERE c.wherePropertyName = wherePropertyValue
+	 * </pre>
+	 * <br/>使用如：
+	 * <pre>
+	 *  //将当前站点使用的模版变量、模版页面全部设置为绑定这个模版
+	 *	updateByHql(TemplatePage.class, "templateName", templateName, "siteid", site.getId());
+	 * </pre>
+	 * @param c {@link Class} 实体类，如 {@link User}.class
+	 * @param setPropertyName 要更新字段的数据表字段名(entity实体类的驼峰写法的字段名)
+	 * @param setPropertyValue 要更新字段的值，新的值。会自动过滤sql注入
+	 * @param wherePropertyName WHERE 查询条件的数据表字段名(entity实体类的驼峰写法的字段名)
+	 * @param wherePropertyValue WHERE 查询条件的数据表字段名的值，条件的值。会自动过滤sql注入
+	 * @return 执行此语句后，数据库中更新的记录条数
+	 */
+	public int updateByHql(Class c, String setPropertyName, String setPropertyValue, String wherePropertyName, Object wherePropertyValue) {
+		String hql = "update "+c.getSimpleName()+" c set c."+setPropertyName+"= :c1 WHERE c."+wherePropertyName+" = :c2";
+ 		Map<String, Object> parameterMap = new HashMap<String, Object>();
+		parameterMap.put("c1", setPropertyValue);
+		parameterMap.put("c2", wherePropertyValue);
+		return executeByHql(hql, parameterMap);
+	}
+	
+    
 	/**
 	 * 从JPA的实体类中，获取数据库表的名字
 	 * @param c 实体类，如 User.class

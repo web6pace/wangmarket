@@ -3,72 +3,12 @@
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>  
 <%@ taglib uri="http://www.xnx3.com/java_xnx3/xnx3_tld" prefix="x" %>
 <%@ taglib prefix="fn" uri="http://java.sun.com/jsp/jstl/functions" %>
-<%
-String path = request.getContextPath();
-String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
-%>
 <jsp:include page="../iw/common/head.jsp">
 	<jsp:param name="title" value="文章列表"/>
 </jsp:include>
-
-<style>
-.body{
-	margin: 0;padding: 0px;height: 100%;overflow: hidden;
-}
-.menu{
-	width:160px;
-	height:100%;
-	background-color: #EAEDF1;
-	position: absolute;
-}
-
-/* 左侧栏目列表的文字 */
-.layui-nav-tree .layui-nav-item a{
-	color:#333;
-}
-
-/*鼠标移动到某项后的样式*/
-.layui-nav-tree .layui-nav-item a:hover:HOVER{
-	background-color: #f4f6f8;
-	color:#222;
-}
-
-/*子栏目*/
-.layui-nav-tree .layui-nav-item dl dd a{
-	padding-left:35px;
-}
-
-.dltitle{
-	background-color: #EAEDF1;
-}
-
-.layui-nav-itemed>a, .layui-nav-tree .layui-nav-title a, .layui-nav-tree .layui-nav-title a:hover {
-    background-color: #EAEDF1!important;
-    color: #222!important;
-}
-
-.table>thead>tr>th, .table>tbody>tr>th, .table>tfoot>tr>th{
-	line-height: 2.2;
-	text-align:center;
-}
-
-.layui-nav-child dd{
-	background-color: #EAEDF1;
-}
-
-.layui-nav .layui-nav-item .layui-nav-more{
-	border-top-color: rgba(64, 34, 34, 0.7);
-}
-/*有二级栏目的，二级栏目伸缩的时候，右侧的小尖头的颜色*/
-.layui-nav .layui-nav-itemed .layui-nav-more{
-	border-top-color: rgba(64, 34, 34, 0);
-	border-color: transparent transparent #a42828;
-}
-    
-</style>
+<link href="/css/site_two_subMenu.css" rel="stylesheet">
 
 <div style="width:100%;height:100%; background-color: #fff; overflow-x: hidden;">
-	
 		
 	<div class="layui-nav layui-nav-tree layui-nav-side menu">
 		<div style="height: 65px;text-align: left;line-height: 65px;font-size: 16px;font-weight: 700;color: black;padding-left: 18px;">内容管理</div>
@@ -76,7 +16,6 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
 		  ${columnTreeNav }
 		</ul>
 	</div>
-	
 	
 	<div style="width: 100%;height:100%;position: absolute;left: 170px;word-wrap: break-word;border-right: 170px;box-sizing: border-box; padding-right: 10px; overflow-y: auto;overflow-x: hidden; border-right: 170px solid transparent;">
 		
@@ -89,7 +28,7 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
 			<input class="layui-btn iw_list_search_submit" type="submit" value="搜索" />
 			
 		    <c:choose>
-			    <c:when test="${siteColumn.type == 1 || siteColumn.type == 2}">
+			    <c:when test="${siteColumn.type == 1 || siteColumn.type == 2 || siteColumn.type == 7}">
 			    	<a href="news.do?cid=${siteColumn['id'] }" class="layui-btn layui-btn-normal" style="float: right; margin-right:10px;">添加信息</a>
 			    </c:when>
 			    <c:otherwise>
@@ -115,7 +54,7 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
 		                <td style="width:60px;">
 		                	<c:if test="${not empty news.titlepic }">
 		               			<c:choose>
-								    <c:when test="${fn:contains(news.titlepic,'http://')}">
+								    <c:when test="${fn:contains(news.titlepic,'//')}">
 								    	<img src="${news.titlepic }?x-oss-process=image/resize,h_25" height="25" />
 								    </c:when>
 								    <c:otherwise>
@@ -139,11 +78,13 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
 							</c:choose>
 		                	
 		                	<c:choose>
-							    <c:when test="${siteColumn.type == 1 || siteColumn.type == 2}">
-							    	<botton class="layui-btn layui-btn-sm" onclick="changeColumn('${news['id'] }', '${news['cid'] }');" style="margin-left: 3px;"><i class="layui-icon">&#xe609;</i></botton>
-							    	<botton class="layui-btn layui-btn-sm" onclick="deleteNews('${news['id'] }');" style="margin-left: 3px;"><i class="layui-icon">&#xe640;</i></botton>
+		                		<c:when test="${siteColumn.type == 3 || siteColumn.type == 5 || siteColumn.type == 8}">
+							    	<!-- 独立页面、超链接是不显示删除按钮、转移栏目的 -->
 							    </c:when>
 							    <c:otherwise>
+							    	<!-- 新闻列表、图文列表, 又或者这里是列出所有信息，siteColumn 本身为空 -->
+							    	<botton class="layui-btn layui-btn-sm" onclick="changeColumn('${news['id'] }', '${news['cid'] }');" style="margin-left: 3px;"><i class="layui-icon">&#xe609;</i></botton>
+							    	<botton class="layui-btn layui-btn-sm" onclick="deleteNews('${news['id'] }');" style="margin-left: 3px;"><i class="layui-icon">&#xe640;</i></botton>
 							    </c:otherwise>
 							</c:choose>
 		                	
@@ -229,7 +170,7 @@ function deleteNews(newsid){
 	}, function(){
 		layer.close(dtv_confirm);
 		iw.loading("删除中");
-		$.post("<%=basePath %>news/deleteNewsForAjax.do?id="+newsid, function(data){
+		$.post("/news/deleteNewsForAjax.do?id="+newsid, function(data){
 			iw.loadClose();
 			if(data.result == '1'){
 				parent.iw.msgSuccess("删除成功");
@@ -250,31 +191,7 @@ function deleteNews(newsid){
  * @param name TemplatePage.name要编辑的模版页面名字
  */
 function editText(name){
-	if(parent.currentMode == 2){
-		//要将其切换回智能模式
-		parent.window.htmledit_mode();
-	}
-	
-	try{
-		parent.document.getElementById("currentTemplatePageName").value = name;
-		parent.loadIframe();
-	}catch(err){}
-	
-	try{
-		parent.document.getElementById("currentTemplateType").innerHTML = '详情页模版';
-		parent.document.getElementById("tongyong").style.display = '';
-		parent.document.getElementById("lanmu").style.display = '';
-		parent.document.getElementById("fenye").style.display = 'none';
-		parent.document.getElementById("wenzhang").style.display = '';
-		parent.document.getElementById("dongtailanmu").style.display = '';
-		parent.document.getElementById("xiangqingduyou").style.display = '';
-		parent.document.getElementById("liebiaoduyou").style.display = 'none';
-	}catch(err){}
-	
-	//try{
-		parent.layer.close(index);
-	//}catch(err){}
-	
+	parent.openTemplatePageList(name);
 }
 
 /**
@@ -283,7 +200,7 @@ function editText(name){
  * columnid 要转移的文章所在的栏目id
  */
 function changeColumn(newsid, columnid){
-	var url = '<%=basePath %>news/newsChangeColumnForSelectColumn.do?newsid='+newsid+'&columnid='+columnid;
+	var url = '/news/newsChangeColumnForSelectColumn.do?newsid='+newsid+'&columnid='+columnid;
 	layer.open({
 		type: 2, 
 		title:'转移到其他栏目', 
@@ -295,6 +212,7 @@ function changeColumn(newsid, columnid){
 </script>
 
 ${autoJumpTemplateEdit}
+
 
 </body>
 </html>

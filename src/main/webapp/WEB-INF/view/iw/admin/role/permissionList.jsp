@@ -1,10 +1,6 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>  
 <%@ taglib uri="http://www.xnx3.com/java_xnx3/xnx3_tld" prefix="x" %>
-<%
-String path = request.getContextPath();
-String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
-%>
 <jsp:include page="../../common/head.jsp">
 	<jsp:param name="title" value="资源列表"/>
 </jsp:include>
@@ -101,14 +97,12 @@ $(function(){
 
 //根据资源的id删除
 function deletePermission(name, permissionId){
-	//要用ajax
-	$.confirm("您确定要删除\""+name+"\"吗?", "确认删除?", function() {
-	
+	layer.confirm("您确定要删除\""+name+"\"吗?", {icon: 3, title:'提示'}, function(index){
 		parent.iw.loading("删除中");    //显示“操作中”的等待提示
 		$.post('deletePermission.do?id='+permissionId, function(data){
 		    parent.iw.loadClose();    //关闭“操作中”的等待提示
 		    if(data.result == '1'){
-		        parent.iw.msgSuccess('删除成功');
+				parent.parent.iw.msgSuccess('删除成功');
 		        window.location.reload();	//刷新当前页
 		     }else if(data.result == '0'){
 		         parent.iw.msgFailure(data.info);
@@ -116,10 +110,9 @@ function deletePermission(name, permissionId){
 		         parent.iw.msgFailure();
 		     }
 		});
-	
-	}, function() {
-		//取消操作
+		layer.close(index);
 	});
+	
 }
 
 /**

@@ -16,9 +16,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartFile;
 import com.xnx3.DateUtil;
 import com.xnx3.Lang;
+import com.xnx3.StringUtil;
 import com.xnx3.wangmarket.im.service.ImService;
 import com.xnx3.j2ee.Global;
 import com.xnx3.j2ee.entity.User;
@@ -47,6 +49,8 @@ import com.xnx3.wangmarket.admin.service.SiteService;
 import com.xnx3.wangmarket.admin.util.AliyunLog;
 import com.xnx3.wangmarket.admin.vo.SiteDataVO;
 import com.xnx3.wangmarket.admin.vo.SiteVO;
+import com.xnx3.wangmarket.domain.bean.MQBean;
+import com.xnx3.wangmarket.domain.bean.SimpleSite;
 
 /**
  * 公共的
@@ -244,7 +248,7 @@ public class SiteController extends BaseController {
 			@RequestParam(value = "bindDomain", required = false , defaultValue="") String bindDomain){
 		BaseVO vo = new BaseVO();
 		
-		bindDomain = filter(bindDomain);
+		bindDomain = StringUtil.filterXss(bindDomain);
 		
 		//v3.0版本更新，若不填写，则是绑定空的字符串，也就是解除之前的域名绑定！
 		if(bindDomain.length() == 0){
@@ -260,11 +264,16 @@ public class SiteController extends BaseController {
 		
 		//v2.1更新，直接从Session中拿site.id
 		Site site = sqlService.findById(Site.class, getSiteId());
+		String oldBindDomain = site.getBindDomain();
 		site.setBindDomain(bindDomain);
 		sqlService.save(site);
 		
 		//更新域名服务器
-		siteService.updateDomainServers(site);
+		MQBean mqBean = new MQBean();
+		mqBean.setType(MQBean.TYPE_BIND_DOMAIN);
+		mqBean.setOldValue(oldBindDomain);
+		mqBean.setSimpleSite(new SimpleSite(site));
+		siteService.updateDomainServers(mqBean);
 		
 		//刷新Session缓存
 		Func.getUserBeanForShiroSession().setSite(site);
@@ -316,7 +325,9 @@ public class SiteController extends BaseController {
 		
 		AliyunLog.addActionLog(getSiteId(), "弹出框口查看我的站点属性信息");
 		
+		
 		siteService.getTemplateCommonHtml(getSite(), "站点属性", model);
+		model.addAttribute("autoAssignDomain", G.getFirstAutoAssignDomain());
 		return "site/baseSet";
 	}
 	
@@ -412,16 +423,24 @@ public class SiteController extends BaseController {
 		
 		//v2.1更新，直接从Session中拿siteid
 		Site site = sqlService.findById(Site.class, getSiteId());
+		String oldDomain = site.getDomain(); 
 		site.setDomain(domain);
 		sqlService.save(site);
 		
-		if(G.SITE_DEPLOYMODE_SHARE){
-			//更新域名服务器
-			siteService.updateDomainServers(site);
-		}else{
-			//更新当前的域名服务器
-			siteService.updateDomainServers(site);
-		}
+		//更新域名服务器
+		MQBean mqBean = new MQBean();
+		mqBean.setType(MQBean.TYPE_DOMAIN);
+		mqBean.setOldValue(oldDomain);
+		mqBean.setSimpleSite(new SimpleSite(site));
+		siteService.updateDomainServers(mqBean);
+		
+//		if(G.SITE_DEPLOYMODE_SHARE){
+//			//更新域名服务器
+//			siteService.updateDomainServers(site);
+//		}else{
+//			//更新当前的域名服务器
+//			siteService.updateDomainServers(site);
+//		}
 		
 		//刷新Session缓存
 		Func.getUserBeanForShiroSession().setSite(site);
@@ -672,7 +691,7 @@ public class SiteController extends BaseController {
 			sqlService.save(news);
 			
 			//如果有旧图，删除掉旧的图片
-			if(oldTitlePic.length() > 0 && oldTitlePic.indexOf("http://") == -1){
+			if(oldTitlePic.length() > 0 && (oldTitlePic.indexOf("http://") == -1 && oldTitlePic.indexOf("https://") == -1 && oldTitlePic.indexOf("//") == -1)){
 				AttachmentFile.deleteObject("site/"+site.getId()+"/news/"+oldTitlePic);
 			}
 			
@@ -815,12 +834,38 @@ public class SiteController extends BaseController {
 	@ResponseBody
 	public UploadFileVO uploadImage(Model model,HttpServletRequest request){
 		UploadFileVO uploadFileVO = AttachmentFile.uploadImage("site/"+getSiteId()+"/news/", request, "image", 0);
+		
 		if(uploadFileVO.getResult() == UploadFileVO.SUCCESS){
 			//上传成功，写日志
 			AliyunLog.addActionLog(getSiteId(), "内容管理上传图片成功："+uploadFileVO.getFileName(), uploadFileVO.getPath());
 		}
 		
 		return uploadFileVO;
+	}
+	
+	/**
+	 * 弹出框，修改邮箱
+	 * 网站设置－修改联系信息，如地址、QQ等
+	 */
+	@RequestMapping("popupUpdateEmailSave${url.suffix}")
+	public String popupUpdateEmailSave(Model model){
+		AliyunLog.addActionLog(getSiteId(), "弹出弹出框，修改邮箱","原本的邮箱:"+getUser().getEmail());
+		
+		model.addAttribute("user", getUser());
+		return "site/popup_updateEmail";
+	}
+	
+	/**
+	 * 弹出框，绑定自己的域名
+	 */
+	@RequestMapping("popupBindDomain${url.suffix}")
+	public String popupBindDomain(Model model,HttpServletRequest request){
+		model.addAttribute("user", getUser());
+		model.addAttribute("site", getSite());
+		
+		AliyunLog.addActionLog(getSiteId(), "弹出框口，绑定自己的域名");
+		
+		return "site/popup_bindDomain";
 	}
 	
 }

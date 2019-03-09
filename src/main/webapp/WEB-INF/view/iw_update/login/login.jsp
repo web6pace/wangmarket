@@ -2,10 +2,7 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://www.xnx3.com/java_xnx3/xnx3_tld" prefix="x" %>
-<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %><%
-String path = request.getContextPath();
-String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
-%>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <jsp:include page="../../iw/common/head.jsp">
 	<jsp:param name="title" value="登录"/>
 </jsp:include>
@@ -104,10 +101,10 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
 <![endif]-->
 
 <!-- weui -->
-<script src="http://res.weiunity.com/js/jquery-2.1.4.js"></script>
-<script src="http://res.weiunity.com/js/jquery-weui.js"></script>
-<link rel="stylesheet" href="http://res.weiunity.com/css/weui.min.css">
-<link rel="stylesheet" href="http://res.weiunity.com/css/jquery-weui.css">
+<script src="//res.weiunity.com/js/jquery-2.1.4.js"></script>
+<script src="//res.weiunity.com/js/jquery-weui.js"></script>
+<link rel="stylesheet" href="//res.weiunity.com/css/weui.min.css">
+<link rel="stylesheet" href="//res.weiunity.com/css/jquery-weui.css">
 <script>
 //Demo
 layui.use('form', function(){
@@ -115,17 +112,30 @@ layui.use('form', function(){
   
   //监听提交
   form.on('submit(formDemo)', function(data){
-  	$.showLoading('登录中...');
+	iw.loading("登陆中...");
+  	//$.showLoading('登录中...');
     var d=$("form").serialize();
-	$.post("<%=basePath %>loginSubmit.do", d, function (result) {
-		$.hideLoading();
+	$.post("loginSubmit.do", d, function (result) {
+		//$.hideLoading();
+		iw.loadClose();
        	var obj = JSON.parse(result);
+       	try{
+       		console.log(obj);
+       	}catch(e){}
        	if(obj.result == '1'){
-       		layer.msg('登陆成功', {shade: 0.3});
+       		iw.msgSuccess("登陆成功！");
        		window.location.href=obj.info;
        	}else if(obj.result == '0'){
+       		//登陆失败
        		reloadCode();
        		layer.msg(obj.info, {shade: 0.3})
+       	}else if(obj.result == '11'){
+       		//网站已过期。弹出提示
+       		reloadCode();
+       		layer.open({
+			  title: '到期提示'
+			  ,content: obj.info
+			});     
        	}else{
        		reloadCode();
        		layer.msg(result, {shade: 0.3})
@@ -176,7 +186,7 @@ layui.use(['jquery'],function(){
 
 });
 </script>
-<script type="text/javascript" src="http://res.weiunity.com/js/jparticle.jquery.js"></script>
+<script type="text/javascript" src="//res.weiunity.com/js/jparticle.jquery.js"></script>
 <script type="text/javascript">
 $(function(){
 	$(".layui-canvs").jParticle({

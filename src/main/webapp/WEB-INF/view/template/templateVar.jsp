@@ -1,17 +1,13 @@
 <%@page import="com.xnx3.j2ee.Global"%>
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@page import="com.xnx3.wangmarket.admin.G"%>
-<%
-String path = request.getContextPath();
-String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
-%>
 <jsp:include page="../iw/common/head.jsp">
 	<jsp:param name="title" value="编辑模版变量"/>
 </jsp:include>
 
 <!-- 代码编辑模式所需资源 -->
-<link rel="stylesheet" href="http://res.weiunity.com/editor/css/editormd.css" />
-<script src="http://res.weiunity.com/editor/editormd.js"></script>
+<link rel="stylesheet" href="//res.weiunity.com/editor/css/editormd.css" />
+<script src="//res.weiunity.com/editor/editormd.js"></script>
 
 <form id="form" class="layui-form layui-form-pane" action="saveTemplateVar.do" method="post" style="padding:5px;">
   <input type="hidden" name="id" value="${templateVar.id }" />
@@ -38,7 +34,7 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
     	<div id="htmlMode" style="width:100%;height:auto; ">
 
 			<div id="editormd" style="width:100%; height:auto; min-height:400px;">
-				<textarea id="html_textarea" name="text" lay-verify="text" placeholder="请输入模版变量代码，注意，请不要将head、body标签放到模版变量里面！" class="layui-textarea" style="height: 95%;">${text }</textarea>
+				<textarea id="html_textarea" name="text" lay-verify="text" placeholder="请输入模版变量代码，注意，请不要将head、body标签放到模版变量里面！" class="layui-textarea" style="height: 95%;">数据加载中...</textarea>
 			</div>
 			
         </div>
@@ -75,7 +71,7 @@ layui.use(['form', 'layedit', 'laydate'], function(){
   form.on('submit(demo1)', function(data){
 		parent.iw.loading('保存中');
 		var d=$("form").serialize();
-        $.post("<%=basePath %>template/saveTemplateVar.do", d, function (result) { 
+        $.post("/template/saveTemplateVar.do", d, function (result) { 
         	parent.iw.loadClose();
         	var obj = JSON.parse(result);
         	if(obj.result == '1'){
@@ -105,7 +101,7 @@ function popupTemplateTagHelp(title,htmlNameTag, width, height){
 	if(htmlNameTag.indexOf('http://') > -1){
 		url = htmlNameTag;
 	}else{
-		url = 'http://res.weiunity.com/html/templateTag/index.html#'+htmlNameTag;
+		url = '//res.weiunity.com/html/templateTag/index.html#'+htmlNameTag;
 	}
 	layer.open({
 		type: 2 //iframe
@@ -125,20 +121,37 @@ function popupTemplateTagHelp(title,htmlNameTag, width, height){
 	});
 }
 
-//代码编辑器
-testEditor = editormd("editormd", {
-          width            : "100%",
-          height            : "650px",
-          watch            : false,
-          toolbar          : false,
-          codeFold         : true,
-          searchReplace    : true,
-          placeholder      : "请输入模版变量的代码",
-          value            : document.getElementById("html_textarea").value,
-          theme            : "default",
-          mode             : "text/html",
-          path             : 'http://res.weiunity.com/editor/lib/'
-      });
+//加载 模版变量 的内容
+function loadTemplateVarText(){
+	parent.iw.loading("加载中");    //显示“操作中”的等待提示
+	$.post("getTemplateVarText.do?varName=${templateVar.varName }", function(data){
+	    parent.iw.loadClose();    //关闭“操作中”的等待提示
+	    if(data.length == 0){
+	    	data = ' ';
+	    }
+	    
+	    
+	    //代码编辑器
+		testEditor = editormd("editormd", {
+	          width            : "100%",
+	          height            : "650px",
+	          watch            : false,
+	          toolbar          : false,
+	          codeFold         : true,
+	          searchReplace    : true,
+	          placeholder      : "请输入模版变量的代码",
+	          value            : data,
+	          theme            : "default",
+	          mode             : "text/html",
+	          path             : '//res.weiunity.com/editor/lib/'
+	      });
+	      
+        
+	},"text");
+}
+loadTemplateVarText();
+
+
 </script>
 
 </body>

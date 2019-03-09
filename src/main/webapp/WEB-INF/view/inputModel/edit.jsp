@@ -1,16 +1,12 @@
 <%@page import="com.xnx3.j2ee.Global"%>
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@page import="com.xnx3.wangmarket.admin.G"%>
-<%
-String path = request.getContextPath();
-String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
-%>
 <jsp:include page="../iw/common/head.jsp">
 	<jsp:param name="title" value="编辑输入模型"/>
 </jsp:include>
 <!-- 代码编辑模式所需资源 -->
-<link rel="stylesheet" href="http://res.weiunity.com/editor/css/editormd.css" />
-<script src="http://res.weiunity.com/editor/editormd.js"></script>
+<link rel="stylesheet" href="//res.weiunity.com/editor/css/editormd.css" />
+<script src="//res.weiunity.com/editor/editormd.js"></script>
 
 <form id="form" class="layui-form layui-form-pane" action="save.do" method="post" style="padding:5px;">
   <input type="hidden" name="id" value="${inputModel.id }" />
@@ -53,7 +49,10 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
 	    <div class="layui-colla-content" style="font-size:12px;">
 	    	{news.title} 标题<br/>
 	    	{news.intro} 简介<br/>
-	    	{titlepicImage} 标题图/列表图，用于列表展示的图片，若有，会以<img ...>标签显示出来<br/>
+	    	{news.extend.???} 【推荐】预留字段，可根据你的意愿来自由使用，自由扩展任意多的字段。 <a href="http://tag.wscso.com/8318.html" target="_black">查看详细说明</a><br/>
+	    	{news.reserve1} 【已不推荐！推荐使用 {news.extend.???}】预留字段，系统中未使用，可根据你的意愿来自由使用<br/>
+	    	{news.reserve2} 【已不推荐! 推荐使用 {news.extend.???}】预留字段，系统中未使用，可根据你的意愿来自由使用<br/>
+	    	{titlepicImage} 或 {news.titlepic} 标题图/列表图，用于列表展示的图片，若有，会以<img ...>标签显示出来<br/>
 	    	{siteColumn.type} 当前操作的内容所属栏目的类型编码<br/>
 	    	{text} 内容，正文<br/>
 	    </div>
@@ -67,14 +66,17 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
 	    	&nbsp;&nbsp;&nbsp;&nbsp;当提交的简介有内容时，保存简介的内容<br/>
 	    	name="titlePicFile" 标题图，用于存储信息列表展示的图片，如产品展示栏目所需要的产品列表图，注意，此处input标签的type类型需要为file！(选填，若不需要可不再表单中体现)
 	    	name="text" 内容，正文，最大可保存五十万字。几乎可忽略字数限制。<br/>
+	    	name="news.extend.???" 推荐】预留字段，可根据你的意愿来自由使用,自由扩展任意多的字段。 <a href="http://tag.wscso.com/8318.html" target="_black">查看详细说明</a><br/>
+	    	name="reserve1" 【已不推荐！推荐使用 news.extend.???】预留字段，系统中未使用，可根据你的意愿来自由使用。长度限制10个文字字符以内！<br/>
+	    	name="reserve2" 【已不推荐！推荐使用 news.extend.???】预留字段，系统中未使用，可根据你的意愿来自由使用。长度限制10个文字字符以内！<br/>
 	    </div>
 	  </div>
 	  <div class="layui-colla-item" style="font-size:12px;">
 	    <h2 class="layui-colla-title">其他说明</h2>
 	    <div class="layui-colla-content">
-	    	1.模型内容最大可存储两万字。
-    		<br/>2.建议不要引入外部资源文件,如图片、css、js。
-    		<br/>3.已引入JQuery、Layer等js框架，可直接再其中使用
+	    	1. 模型内容最大可存储两万字。
+    		<br/>2. 已引入JQuery、Layer等js框架，可直接再其中使用
+    		<br/>3. 您可自己在其中添加js方法 function save(){} 在点击保存时，会先执行save()，再执行提交。 另外，如果save() 方法 return false，那么会终止保存功能的执行，即不会进行保存
 	    </div>
 	  </div>
 	</div>
@@ -113,7 +115,7 @@ layui.use(['element', 'form', 'layedit', 'laydate'], function(){
   form.on('submit(demo1)', function(data){
 		parent.iw.loading('保存中');
 		var d=$("form").serialize();
-        $.post("<%=basePath %>inputModel/save.do", d, function (result) { 
+        $.post("/inputModel/save.do", d, function (result) { 
         	parent.iw.loadClose();
         	var obj = JSON.parse(result);
         	if(obj.result == '1'){
@@ -145,14 +147,14 @@ function loadEditor(){
 	    value            : document.getElementById("html_textarea").value,
 	    theme            : "default",
 	    mode             : "text/html",
-	    path             : 'http://res.weiunity.com/editor/lib/'
+	    path             : '//res.weiunity.com/editor/lib/'
 	});
 }
 
 //加载输入模型的主要数据
 function load(){
 	parent.iw.loading("加载中");
-	$.post("<%=basePath %>inputModel/getInputModelTextById.do?id=${inputModel.id }", function(data){
+	$.post("/inputModel/getInputModelTextById.do?id=${inputModel.id }", function(data){
 		parent.iw.loadClose();
 		if(data.result == '1'){
 			//编辑模式，获取模型主要内容成功，加载到textarea

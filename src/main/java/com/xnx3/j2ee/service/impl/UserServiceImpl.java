@@ -5,9 +5,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-
+import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authc.ExcessiveAttemptsException;
 import org.apache.shiro.authc.IncorrectCredentialsException;
@@ -16,8 +15,6 @@ import org.apache.shiro.authc.UnknownAccountException;
 import org.apache.shiro.authc.UsernamePasswordToken;
 import org.apache.shiro.crypto.hash.Md5Hash;
 import org.apache.shiro.subject.Subject;
-import org.hibernate.Query;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.MultipartHttpServletRequest;
@@ -39,15 +36,20 @@ import com.xnx3.j2ee.func.Language;
 import com.xnx3.j2ee.func.Log;
 import com.xnx3.j2ee.func.OSS;
 import com.xnx3.j2ee.func.Safety;
-import com.xnx3.media.ImageUtil;
-//import com.xnx3.net.OSSUtil;
-import com.xnx3.net.ossbean.PutResult;
 
 @Service
 public class UserServiceImpl implements UserService{
 
-	@Autowired
+	@Resource
 	private SqlDAO sqlDAO;
+
+	public SqlDAO getSqlDAO() {
+		return sqlDAO;
+	}
+
+	public void setSqlDAO(SqlDAO sqlDAO) {
+		this.sqlDAO = sqlDAO;
+	}
 
 	public User findByPhone(Object phone){
 		List<User> list = sqlDAO.findByProperty(User.class, "phone", phone);
@@ -65,9 +67,15 @@ public class UserServiceImpl implements UserService{
 	 * @return {@link BaseVO}
 	 */
 	public BaseVO loginByUsernameAndPassword(HttpServletRequest request) {
-		BaseVO baseVO = new BaseVO();
 		String username = request.getParameter("username");
 		String password = request.getParameter("password");
+		return loginByUsernameAndPassword(request, username, password);
+	}
+	
+	public BaseVO loginByUsernameAndPassword(HttpServletRequest request, String username, String password){
+		username = Safety.filter(username);
+		
+		BaseVO baseVO = new BaseVO();
 		if(username==null || username.length() == 0 ){
 			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_loginUserOrEmailNotNull"));
 			return baseVO;
@@ -133,10 +141,10 @@ public class UserServiceImpl implements UserService{
 	 */
 	public BaseVO reg(User user, HttpServletRequest request) {
 		BaseVO baseVO = new BaseVO();
-		user.setEmail(StringUtil.filterXss(user.getEmail()));
-		user.setNickname(StringUtil.filterXss(user.getNickname()));
-		user.setPhone(StringUtil.filterXss(user.getPhone()));
-		user.setUsername(StringUtil.filterXss(user.getUsername()));
+		user.setEmail(Safety.filter(user.getEmail()));
+		user.setNickname(Safety.filter(user.getNickname()));
+		user.setPhone(Safety.filter(user.getPhone()));
+		user.setUsername(Safety.filter(user.getUsername()));
 		
 		//判断用户名、邮箱、手机号是否有其中为空的
 		if(user.getUsername()==null||user.getUsername().equals("")||user.getPassword()==null||user.getPassword().equals("")){
@@ -194,71 +202,68 @@ public class UserServiceImpl implements UserService{
 			}
 		}
 		
-		if(user.getUsername()==null||user.getUsername().equals("")||user.getEmail()==null||user.getEmail().equals("")||user.getPassword()==null||user.getPassword().equals("")){
-			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_regDataNotAll"));
-		}else{
-			if(user.getUsername().length() > 20){
-				baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_userNameToLong"));
+
+		if(user.getUsername().length() > 20){
+			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_userNameToLong"));
+		}
+		
+		Random random = new Random();
+		user.setSalt(random.nextInt(10)+""+random.nextInt(10)+""+random.nextInt(10)+""+random.nextInt(10)+"");
+        String md5Password = new Md5Hash(user.getPassword(), user.getSalt(),Global.USER_PASSWORD_SALT_NUMBER).toString();
+		user.setPassword(md5Password);
+		
+		sqlDAO.save(user);
+		if(user.getId()>0){
+			//已注册成功，自动登录成用户
+			UsernamePasswordToken token = new UsernamePasswordToken(user.getUsername(), user.getUsername());
+	        token.setRememberMe(false);
+			Subject currentUser = SecurityUtils.getSubject();  
+			
+			try {  
+				currentUser.login(token);  
+			} catch ( UnknownAccountException uae ) {
+			} catch ( IncorrectCredentialsException ice ) {
+			} catch ( LockedAccountException lae ) {
+			} catch ( ExcessiveAttemptsException eae ) {
+			} catch ( org.apache.shiro.authc.AuthenticationException ae ) {  
 			}
 			
-			Random random = new Random();
-			user.setSalt(random.nextInt(10)+""+random.nextInt(10)+""+random.nextInt(10)+""+random.nextInt(10)+"");
-	        String md5Password = new Md5Hash(user.getPassword(), user.getSalt(),Global.USER_PASSWORD_SALT_NUMBER).toString();
-			user.setPassword(md5Password);
+			//赋予该用户系统设置的默认角色
+			UserRole userRole = new UserRole();
+			userRole.setRoleid(Lang.stringToInt(Global.system.get("USER_REG_ROLE"), 0));
+			userRole.setUserid(user.getId());
+			sqlDAO.save(userRole);
 			
-			sqlDAO.save(user);
-			if(user.getId()>0){
-				//已注册成功，自动登录成用户
-				UsernamePasswordToken token = new UsernamePasswordToken(user.getUsername(), user.getUsername());
-		        token.setRememberMe(false);
-				Subject currentUser = SecurityUtils.getSubject();  
+			//推荐人增加奖励
+			if(user.getReferrerid()>0){	//是否有直接推荐人
+				referrerAddAward(referrerUser1, Global.system.get("INVITEREG_AWARD_ONE"), user);
 				
-				try {  
-					currentUser.login(token);  
-				} catch ( UnknownAccountException uae ) {
-				} catch ( IncorrectCredentialsException ice ) {
-				} catch ( LockedAccountException lae ) {
-				} catch ( ExcessiveAttemptsException eae ) {
-				} catch ( org.apache.shiro.authc.AuthenticationException ae ) {  
-				}
-				
-				//赋予该用户系统设置的默认角色
-				UserRole userRole = new UserRole();
-				userRole.setRoleid(Lang.stringToInt(Global.system.get("USER_REG_ROLE"), 0));
-				userRole.setUserid(user.getId());
-				sqlDAO.save(userRole);
-				
-				//推荐人增加奖励
-				if(user.getReferrerid()>0){	//是否有直接推荐人
-					referrerAddAward(referrerUser1, Global.system.get("INVITEREG_AWARD_ONE"), user);
-					
-					if(referrerUser1.getReferrerid()>0){	//一级下线有上级推荐人，拿到二级下线
-						User referrerUser2 = sqlDAO.findById(User.class, referrerUser1.getReferrerid());
-						if(referrerUser2!=null){
-							referrerAddAward(referrerUser2, Global.system.get("INVITEREG_AWARD_TWO"), user);
-							
-							if(referrerUser2.getReferrerid()>0){	//二级下线有上级推荐人，拿到三级下线
-								User referrerUser3 = sqlDAO.findById(User.class, referrerUser2.getReferrerid());
-								if(referrerUser3!=null){
-									referrerAddAward(referrerUser3, Global.system.get("INVITEREG_AWARD_THREE"), user);
-									
-									if(referrerUser3.getReferrerid()>0){	//三级下线有上级推荐人，拿到四级下线
-										User referrerUser4 = sqlDAO.findById(User.class, referrerUser3.getReferrerid());
-										if(referrerUser4!=null){
-											referrerAddAward(referrerUser4, Global.system.get("INVITEREG_AWARD_FOUR"), user);
-										}
+				if(referrerUser1.getReferrerid()>0){	//一级下线有上级推荐人，拿到二级下线
+					User referrerUser2 = sqlDAO.findById(User.class, referrerUser1.getReferrerid());
+					if(referrerUser2!=null){
+						referrerAddAward(referrerUser2, Global.system.get("INVITEREG_AWARD_TWO"), user);
+						
+						if(referrerUser2.getReferrerid()>0){	//二级下线有上级推荐人，拿到三级下线
+							User referrerUser3 = sqlDAO.findById(User.class, referrerUser2.getReferrerid());
+							if(referrerUser3!=null){
+								referrerAddAward(referrerUser3, Global.system.get("INVITEREG_AWARD_THREE"), user);
+								
+								if(referrerUser3.getReferrerid()>0){	//三级下线有上级推荐人，拿到四级下线
+									User referrerUser4 = sqlDAO.findById(User.class, referrerUser3.getReferrerid());
+									if(referrerUser4!=null){
+										referrerAddAward(referrerUser4, Global.system.get("INVITEREG_AWARD_FOUR"), user);
 									}
 								}
 							}
 						}
 					}
 				}
-				
-//				logDao.insert("USER_REGISTER_SUCCESS");
-				baseVO.setBaseVO(BaseVO.SUCCESS, user.getId()+"");
-			}else{
-				baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_regFailure"));
 			}
+			
+//				logDao.insert("USER_REGISTER_SUCCESS");
+			baseVO.setBaseVO(BaseVO.SUCCESS, user.getId()+"");
+		}else{
+			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_regFailure"));
 		}
 		
 		return baseVO;
@@ -306,8 +311,8 @@ public class UserServiceImpl implements UserService{
 	 */
 	public BaseVO loginByPhoneAndCode(HttpServletRequest request) {
 		BaseVO baseVO = new BaseVO();
-		String phone = request.getParameter("phone");
-		String code = request.getParameter("code");
+		String phone = Safety.filter(request.getParameter("phone"));
+		String code = Safety.filter(request.getParameter("code"));
 		if(phone==null || phone.length() != 11){
 			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_loginByPhoneAndCodePhoneFailure"));
 			return baseVO;
@@ -325,18 +330,17 @@ public class UserServiceImpl implements UserService{
 		SmsLog smsLog = findByPhoneAddtimeUsedTypeCode(phone, queryAddtime, SmsLog.USED_FALSE, SmsLog.TYPE_LOGIN,code);
     	if(smsLog != null){
     		User user = findByPhone(phone);
-    		if(user == null){
-    			//如果没有用户，则模拟注册一个
-    			Random random = new Random();
-    			user = new User();
-    			String password = random.nextInt(10)+""+random.nextInt(10)+""+random.nextInt(10)+""+random.nextInt(10)+""+random.nextInt(10)+""+random.nextInt(10);
-    			user.setUsername(phone);
-    			user.setEmail(phone+"@139.com");
-    			user.setPassword(password);
-    			user.setPhone(phone);
-    			reg(user, request);
+    		int userid = 0;
+    		if(user != null && user.getId() != null){
+    			userid = user.getId();
     		}
-    		user = findByPhone(phone);
+    		
+    		/****更改SmsLog状态*****/
+    		smsLog.setUserid(userid);
+    		smsLog.setUsed(SmsLog.USED_TRUE);
+    		sqlDAO.save(smsLog);
+    		
+    		//如果没有用户，则直接返回失败提示
     		if(user == null){
     			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_loginByPhoneAndCodeRegFailure"));
     			return baseVO;
@@ -348,10 +352,6 @@ public class UserServiceImpl implements UserService{
 				return baseVO;
 			}
     		
-    		/****更改SmsLog状态*****/
-    		smsLog.setUserid(user.getId());
-    		smsLog.setUsed(SmsLog.USED_TRUE);
-    		sqlDAO.save(smsLog);
     		
     		/*******更改User状态******/
     		user.setLasttime(DateUtil.timeForUnix10());
@@ -396,31 +396,13 @@ public class UserServiceImpl implements UserService{
 	 * @return 若查询到验证码存在，返回 {@link SmsLog}，若查询不到，返回null，即验证码不存在
 	 */
 	private SmsLog findByPhoneAddtimeUsedTypeCode(String phone,int addtime,Short used,Short type,String code){
-//		sqlDAO.findBySqlQuery("SELECT * FROM sms_log WHERE addtime", SmsLog.class);
-//		try {
-//			String queryString = "from SmsLog as model where model.phone= :phone and model.addtime > :addtime and model.used = :used and model.type = :type and model.code = :code";
-//			Query queryObject = sqlDAO.getCurrentSession().createQuery(queryString);
-//			queryObject.setParameter("phone", phone);
-//			queryObject.setParameter("addtime", addtime);
-//			queryObject.setParameter("used", used);
-//			queryObject.setParameter("type", type);
-//			queryObject.setParameter("code", code);
-//			
-//			List<SmsLog> list = queryObject.list();
-//			if(list.size() > 0){
-//				return list.get(0);
-//			}
-//		} catch (RuntimeException re) {
-//			throw re;
-//		}
-		
 		Map<String, Object> parameterMap = new HashMap<String, Object>();
 		parameterMap.put("phone", phone);
 		parameterMap.put("addtime", addtime);
 		parameterMap.put("used", used);
 		parameterMap.put("type", type);
 		parameterMap.put("code", code);
-		List<SmsLog> list = sqlDAO.findByHql("from SmsLog as model where model.phone= :phone and model.addtime > :addtime and model.used = :used and model.type = :type and model.code = :code", parameterMap);
+		List<SmsLog> list = sqlDAO.findByHql("from SmsLog as model where model.phone= :phone and model.addtime > :addtime and model.used = :used and model.type = :type and model.code = :code", parameterMap, 0);
 		if(list.size() > 0){
 			return list.get(0);
 		}
@@ -436,7 +418,7 @@ public class UserServiceImpl implements UserService{
 	 */
 	public BaseVO loginByPhone(HttpServletRequest request) {
 		BaseVO baseVO = new BaseVO();
-		String phone = request.getParameter("phone");
+		String phone = Safety.filter(request.getParameter("phone"));
 		if(phone==null){
 			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_loginByPhonePhoneFailure"));
 			return baseVO;
@@ -448,9 +430,7 @@ public class UserServiceImpl implements UserService{
 			}
 		}
 		
-		Log.debug("phone:"+phone);
 		User user = findByPhone(phone);
-		Log.debug("根据用户手机号查询得到用户得信息,user:"+user);
 		if(user == null){
 			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_loginByPhoneUserNotFind"));
 			return baseVO;
@@ -458,7 +438,6 @@ public class UserServiceImpl implements UserService{
 		
 		//ip检测
 		String ip = IpUtil.getIpAddress(request);
-		Log.debug("得到用户请求得IP地址："+ip);
 		if(!(user.getLastip().equals(ip) || user.getRegip().equals(ip))){
 			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_loginByPhoneIpFailure"));
 			return baseVO;
@@ -551,14 +530,10 @@ public class UserServiceImpl implements UserService{
 		
 		User user = ShiroFunc.getUser();
 		String fileSuffix = "png";
-		fileSuffix = Lang.findFileSuffix(head.getOriginalFilename());
+		fileSuffix = Lang.findFileSuffix(Safety.filter(head.getOriginalFilename()));
 		String newHead = Lang.uuid()+"."+fileSuffix;
 		try {
-//			PutResult result = OSSUtil.put(Global.get("USER_HEAD_PATH")+newHead, head.getInputStream());
 			uploadFileVO = AttachmentFile.put(Global.get("USER_HEAD_PATH")+newHead, head.getInputStream());
-//			uploadFileVO.setFileName(result.getFileName());
-//			uploadFileVO.setPath(result.getPath());
-//			uploadFileVO.setUrl(result.getUrl());
 		} catch (IOException e) {
 			e.printStackTrace();
 			uploadFileVO.setBaseVO(BaseVO.FAILURE, e.getMessage());
@@ -582,7 +557,7 @@ public class UserServiceImpl implements UserService{
 
 	public BaseVO updateSex(HttpServletRequest request) {
 		BaseVO baseVO = new BaseVO();
-		String sex = request.getParameter("sex");
+		String sex = Safety.filter(request.getParameter("sex"));
 		if(sex == null || sex.length()<0){
 			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_updateSexSexNotIsNull"));
 			return baseVO;
@@ -602,11 +577,10 @@ public class UserServiceImpl implements UserService{
 
 	public BaseVO updateNickname(HttpServletRequest request) {
 		BaseVO baseVO = new BaseVO();
-		String nickname = request.getParameter("nickname");
+		String nickname = StringUtil.filterXss(request.getParameter("nickname"));
 		if(nickname == null){
 			nickname = "";
 		}
-		nickname = Safety.filter(nickname);
 		if(nickname.length()==0){
 			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_updateNicknameNotNull"));
 			return baseVO;
@@ -620,6 +594,7 @@ public class UserServiceImpl implements UserService{
 		u.setNickname(nickname);
 		sqlDAO.save(u);
 		ShiroFunc.getUser().setNickname(nickname);
+		baseVO.setInfo(nickname);
 		
 		return baseVO;
 	}
@@ -630,7 +605,8 @@ public class UserServiceImpl implements UserService{
 		if(sign == null){
 			sign = "";
 		}
-		sign = StringUtil.filterHtmlTag(sign);
+		//过滤html标签、sql注入、xss
+		sign = Safety.filter(StringUtil.filterHtmlTag(sign));
 		if(sign.length()>40){
 			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_updateSignSizeFailure"));
 			return baseVO;
@@ -693,11 +669,6 @@ public class UserServiceImpl implements UserService{
 
 	public BaseVO loginByUserid(HttpServletRequest request, int userid) {
 		BaseVO baseVO = new BaseVO();
-//		if(userid == 0){
-		//请传入要登陆用户的id
-//			baseVO.setBaseVO(BaseVO.FAILURE, Language.show("user_loginByPhonePhoneFailure"));
-//			return baseVO;
-//		}
 		
 		User user = sqlDAO.findById(User.class, userid);
 		if(user == null){
@@ -810,8 +781,8 @@ public class UserServiceImpl implements UserService{
 
 	public BaseVO createUser(User user, HttpServletRequest request) {
 		//用户名、密码进行xss、sql防注入
-		user.setUsername(StringUtil.filterXss(Sql.filter(user.getUsername())));
-		user.setPassword(StringUtil.filterXss(Sql.filter(user.getPassword())));
+		user.setUsername(Safety.filter(user.getUsername()));
+		user.setPassword(Safety.filter(user.getPassword()));
 		
 		//既然是注册新用户，那么用户名、密码一定是不能为空的
 		if(user.getUsername()==null||user.getUsername().equals("")){
@@ -876,7 +847,7 @@ public class UserServiceImpl implements UserService{
 		if(user.getHead() == null){
 			user.setHead("default.png");
 		}else{
-			user.setHead(StringUtil.filterXss(Sql.filter(user.getHead())));
+			user.setHead(Safety.filter(user.getHead()));
 		}
 		if(user.getId() != null){
 			user.setId(null);
@@ -885,10 +856,10 @@ public class UserServiceImpl implements UserService{
 		/* 密码加密，保存 */
 		Random random = new Random();
 		user.setSalt(random.nextInt(10)+""+random.nextInt(10)+""+random.nextInt(10)+""+random.nextInt(10)+"");
-        String md5Password = new Md5Hash(user.getPassword(), user.getSalt(),Global.USER_PASSWORD_SALT_NUMBER).toString();
+		String md5Password = generateMd5Password(user.getPassword(), user.getSalt());
 		user.setPassword(md5Password);
 		sqlDAO.save(user);
-			
+		
 		if(user.getId()>0){
 			//已注册成功
 			
@@ -911,14 +882,17 @@ public class UserServiceImpl implements UserService{
 			head = defaultHead;
 		}else{
 			if(user.getHead() != null && user.getHead().length() > 10){
-				if(user.getHead().indexOf("http:") == -1){
+				//判断头像是绝对路径还是相对路径的
+				if(user.getHead().indexOf("http:") == 0 || user.getHead().indexOf("https:") == 0 || user.getHead().indexOf("//") == 0){
+					//如果发现头像是绝对路径，直接将其赋予head，原样返回
+					head = user.getHead();
+				}else{
+					//是相对路径，那就要增加前缀了
 					if(user.getHead().equals("default.png")){
 						head = defaultHead;
 					}else{
 						head = AttachmentFile.netUrl() + Global.get("USER_HEAD_PATH") + user.getHead();
 					}
-				}else{
-					head = user.getHead();
 				}
 			}else{
 				head = defaultHead;
@@ -927,5 +901,10 @@ public class UserServiceImpl implements UserService{
 		
 		return head;
 	}
-
+	
+	
+	
+	public String generateMd5Password(String originalPassword, String salt){
+        return new Md5Hash(originalPassword, salt ,Global.USER_PASSWORD_SALT_NUMBER).toString();
+	}
 }

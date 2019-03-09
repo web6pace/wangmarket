@@ -3,49 +3,11 @@
 
 	<!-- 文件、附件系统。图片上传等都通过此处 -->
 	<attachmentFile>
-		<!-- 附件文件使用模式，目前有两种：  
-			aliyunOSS : 使用阿里云OSS进行文件、附件上传 
-			localFile : 使用运行的服务器本身进行文件存储，比较传统的存储方式，配置最简单，若第一次用，懂得不多，可使用此种方式 -->
-		<mode>localFile</mode>
-		<!-- 允许上传的文件后缀列表，每个后缀用suffix包含。如下所示 -->
-		<allowUploadSuffix>
-			<suffix>jpg</suffix>
-			<suffix>png</suffix>
-			<suffix>gif</suffix>
-			<suffix>jpeg</suffix>
-			<suffix>bmp</suffix>
-			<suffix>svg</suffix>
-			<suffix>zip</suffix>
-			<suffix>rar</suffix>
-		</allowUploadSuffix>
+		<!-- 允许上传的文件后缀列表，多个以|分割 -->
+		<allowUploadSuffix>png|jpg|jpeg|gif|bmp|flv|swf|mkv|avi|rm|rmvb|mpeg|mpg|ogg|ogv|mov|wmv|mp4|webm|mp3|wav|mid|rar|zip|tar|gz|7z|bz2|cab|iso|doc|docx|xls|xlsx|ppt|pptx|pdf|txt|md|xml</allowUploadSuffix>
 	</attachmentFile>
 
-	<log>
-		<!-- logService 动作日志记录的相关参数配置,记录所有用户的动作信息
-			若不使用，不开启，use为false即可
-		 -->
-		<logService>
-			<!-- 是否使用此功能。若使用日志服务记录日志动作，则此为true，若不使用，则下面参数不用管，use为false即可 -->
-			<use>false</use>
-			<!-- 服务入口，如cn-hangzhou.log.aliyuncs.com ，具体参考 https://help.aliyun.com/document_detail/29008.html -->
-			<endpoint>cn-hongkong.log.aliyuncs.com</endpoint>
-			<!-- 阿里云的 AccessKeys  -->
-			<!-- 若accessKeyId不填写，则默认自动从数据库中取system表，name=ALIYUN_ACCESSKEYID的值 -->
-			<accessKeyId></accessKeyId>
-			<!-- 若accessKeySecret不填写，则默认自动从数据库中取system表，name=ALIYUN_ACCESSKEYSECRET的值 -->
-			<accessKeySecret></accessKeySecret>
-			<!-- 日志服务的Project -->
-			<project>requestlog</project>
-			<!-- 上面project下的Logstore -->
-			<logstore>siteconsole</logstore>
-			
-			<!-- 缓存日志的最大时间，单位为秒。超过这个时间后，将会自动提交日志。即每隔多长时间就自动提交日志，然后清空（ {@link #logGroup} ）重新开始累计 -->
-			<log_cache_max_time>600</log_cache_max_time>
-			<!-- 缓存日志的最大条数。当达到这个条数后，将自动提交日志。 -->
-			<log_cache_max_number>100</log_cache_max_number>
-		</logService>
-	</log>
-	
+
 	<sms>
 		<!-- 短信同一手机号，某个功能每天发送的条数限制，超过这个条数，这个功能便无法再次发送短信了。 -->
 		<!-- 如登录功能，这个功能今天18453663367这个手机号发送了5次短信，再次发送时，便会失败，今天不能再发送了 -->
@@ -77,11 +39,7 @@
 		<post_info_autoCat_max>60</post_info_autoCat_max>
 	</bbs>
 	
-	<!-- aliyun OSS 文件上传 -->
-	<OSS>
-		<!-- 图片文件，允许上传的图片的后缀名，多个以|分割 -->
-		<imageSuffixList>jpg|png|gif|bmp|jpeg</imageSuffixList>
-	</OSS>
+
 	
 	<!-- 百度 UEditor编辑器 -->
 	<UEditor>

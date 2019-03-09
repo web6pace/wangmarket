@@ -1,4 +1,9 @@
 package com.xnx3.j2ee.controller;
+import java.io.IOException;
+import java.io.PrintWriter;
+
+import javax.servlet.http.HttpServletResponse;
+
 import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.subject.Subject;
 import org.springframework.ui.Model;
@@ -8,6 +13,8 @@ import com.xnx3.j2ee.entity.User;
 import com.xnx3.j2ee.shiro.ActiveUser;
 import com.xnx3.j2ee.util.Sql;
 import com.xnx3.j2ee.vo.BaseVO;
+
+import net.sf.json.JSONObject;
 
 /**
  * 所有Controller父类
@@ -49,7 +56,23 @@ public class BaseController {
 			return null;
 		}
 	}
-
+	
+	/**
+	 * 设置/更新 当前用户的 Session 用户缓存数据
+	 * @param user 要设置的 user 用户信息缓存
+	 * @return true:设置成功
+	 */
+	public boolean setUser(User user){
+		ActiveUser activeUser = getActiveUser();
+		if(activeUser!=null){
+			activeUser.setUser(user);
+			return true;
+		}else{
+			return false;
+		}
+	}
+	
+	
 	/**
 	 * 获取当前登录用户的id
 	 * @return <ul>
@@ -210,5 +233,31 @@ public class BaseController {
 	 */
 	public String filter(String text){
 		return StringUtil.filterXss(Sql.filter(text));
+	}
+	
+	/**
+	 * 响应json结果
+	 * @param response
+	 * @param result 传入如 {@link BaseVO}.SUCCESS
+	 * @param info 信息
+	 */
+	public void responseJson(HttpServletResponse response, int result, String info){
+		JSONObject json = new JSONObject();
+		json.put("result", result);
+		json.put("info", info);
+		
+		response.setCharacterEncoding("UTF-8");  
+	    response.setContentType("application/json; charset=utf-8");  
+	    PrintWriter out = null;  
+	    try { 
+	        out = response.getWriter();  
+	        out.append(json.toString());
+	    } catch (IOException e) {  
+	        e.printStackTrace();  
+	    } finally {  
+	        if (out != null) {  
+	            out.close();  
+	        }
+	    }  
 	}
 }

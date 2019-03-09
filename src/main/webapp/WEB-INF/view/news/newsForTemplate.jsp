@@ -1,14 +1,10 @@
 <%@page import="com.xnx3.j2ee.Global"%>
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@page import="com.xnx3.wangmarket.admin.G"%>
-<%
-String path = request.getContextPath();
-String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
-%>
 <jsp:include page="../iw/common/head.jsp">
 	<jsp:param name="title" value="文章内容"/>
 </jsp:include>
-<script type="text/javascript" src="http://res.weiunity.com/js/fun.js"></script>
+<script type="text/javascript" src="//res.weiunity.com/js/fun.js"></script>
 
 <script type="text/javascript">
 /**
@@ -46,6 +42,16 @@ if('${siteColumn.type}' == 3 && '${siteColumn.editMode}' == 1){
 }
 </script>
 
+<style>
+/*input输入框下面的文字说明*/
+.explain{
+	font-size: 12px;
+    color: gray;
+    padding-top: 3px;
+}
+</style>
+
+
 <form id="form" method="post" class="layui-form" enctype="multipart/form-data" style="padding-top:35px; margin-bottom: 10px; padding-right:35px;">
 	<input type="hidden" name="id" value="${news.id }" />
 	<input type="hidden" name="cid" value="${news.cid }" />
@@ -61,27 +67,90 @@ if('${siteColumn.type}' == 3 && '${siteColumn.editMode}' == 1){
 </form>
 
 <script>
-layui.use('upload', function(){
-	var upload = layui.upload;
-	//上传图片
-	upload.render({
-		elem: '#uploadImagesButton' //绑定元素
+try{
+	if('${siteColumn.editUseTitlepic}' == '1'){
+		document.getElementById('sitecolumn_editUseTitlepic').style.display='';
+	}
+}catch(e){ }
+try{
+	if('${siteColumn.editUseExtendPhotos}' == '1'){
+		document.getElementById('sitecolumn_editUseExtendPhotos').style.display='';
+	}
+}catch(e){ }
+try{
+	if('${siteColumn.editUseIntro}' == '1'){
+		document.getElementById('sitecolumn_editUseIntro').style.display='';
+	}
+}catch(e){ }
+try{
+	if('${siteColumn.editUseText}' == '1'){
+		document.getElementById('sitecolumn_editUseText').style.display='';
+	}
+}catch(e){ }
+
+var uploadExtendPhotos = {
+		elem: '.uploadImagesButton' //绑定元素
 		,url: parent.masterSiteUrl+'site/uploadImage.do' //上传接口
 		,field: 'image'
+		,accept: 'file'
+		,size: ${maxFileSizeKB}
+		,exts:'${ossFileUploadImageSuffixList }'	//可上传的文件后缀
 		,done: function(res){
 			//上传完毕回调
 			loadClose();
+			
+			var key = this.item[0].name;	//拿到传递参数的key，也就是 extend.photos 中，数组某项的下表
+			
 			if(res.result == 1){
-				document.getElementById("titlePicInput").value = res.url;
-				document.getElementById("titlePicA").href = res.url;
-				document.getElementById("titlePicImg").src = res.url;
-				document.getElementById("titlePicImg").style.display='';	//避免新增加的文章，其titlepicImg是隐藏的
+				try{
+					document.getElementById("titlePicInput"+key).value = res.url;
+					document.getElementById("titlePicA"+key).href = res.url;
+					document.getElementById("titlePicImg"+key).src = res.url;
+					document.getElementById("titlePicImg"+key).style.display='';	//避免新增加的文章，其titlepicImg是隐藏的
+				}catch(err){}
 				parent.iw.msgSuccess("上传成功");
 			}else{
 				parent.iw.msgFailure(res.info);
 			}
 		}
-		,error: function(){
+		,error: function(index, upload){
+			//请求异常回调
+			parent.iw.loadClose();
+			parent.iw.msgFailure();
+		}
+		,before: function(obj){ //obj参数包含的信息，跟 choose回调完全一致，可参见上文。
+			parent.iw.loading('上传中..');
+		}
+	};
+
+var upload;
+layui.use('upload', function(){
+	upload = layui.upload;
+	//上传图片,封面图
+	//upload.render(uploadPic);
+	upload.render({
+		elem: "#uploadImagesButton" //绑定元素
+		,url: parent.masterSiteUrl+'site/uploadImage.do' //上传接口
+		,field: 'image'
+		,accept: 'file'
+		,size: ${maxFileSizeKB}
+		,exts:'${ossFileUploadImageSuffixList }'	//可上传的文件后缀
+		,done: function(res){
+			//上传完毕回调
+			loadClose();
+			if(res.result == 1){
+				try{
+					document.getElementById("titlePicInput").value = res.url;
+					document.getElementById("titlePicA").href = res.url;
+					document.getElementById("titlePicImg").src = res.url;
+					document.getElementById("titlePicImg").style.display='';	//避免新增加的文章，其titlepicImg是隐藏的
+				}catch(err){}
+				parent.iw.msgSuccess("上传成功");
+			}else{
+				parent.iw.msgFailure(res.info);
+			}
+		}
+		,error: function(index, upload){
 			//请求异常回调
 			parent.iw.loadClose();
 			parent.iw.msgFailure();
@@ -90,6 +159,9 @@ layui.use('upload', function(){
 			parent.iw.loading('上传中..');
 		}
 	});
+	
+	//上传图片,图集，v4.6扩展
+	upload.render(uploadExtendPhotos);
 });
 </script>
 
@@ -98,6 +170,17 @@ layui.use(['form', 'layedit', 'laydate'], function(){
   var form = layui.form;
   //监听提交
 	form.on('submit(demo1)', function(data){
+	
+		//判断是否有 save() 方法，若有，则先执行 save()  这个方法是用户在输入模型中自己定义的
+		if(typeof(save) == 'function'){
+			try{
+				var s_return = save();
+				if(typeof(s_return) == 'boolean' && s_return == false){
+					return false;
+				}
+			}catch(err){}
+		}
+	
 		parent.iw.loading("保存中");    //显示“操作中”的等待提示
 		//创建FormData对象，获取到form表单的相关数据
 		var formobj =  document.getElementById("form");
@@ -108,7 +191,7 @@ layui.use(['form', 'layedit', 'laydate'], function(){
 	    //    data.append('titlePicFile', file);
 	    //});
 		$.ajax({
-			url:'<%=basePath %>news/saveNews.do',
+			url:'/news/saveNews.do',
 	        type:'POST',
 	        data:data,
 	        cache: false,

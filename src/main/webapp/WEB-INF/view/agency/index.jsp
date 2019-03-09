@@ -4,22 +4,13 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>  
 <%@ taglib uri="http://www.xnx3.com/java_xnx3/xnx3_tld" prefix="x" %>
-<%
-String path = request.getContextPath();
-String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
-%>
 <jsp:include page="../iw/common/head.jsp">
 	<jsp:param name="title" value="代理首页"/>
 </jsp:include>
-<script src="<%=basePath+Global.CACHE_FILE %>Role_role.js"></script>
+<script src="/<%=Global.CACHE_FILE %>Role_role.js"></script>
 <script src="<%=Global.get("ATTACHMENT_FILE_URL") %>js/fun.js"></script>
 <script src="<%=Global.get("ATTACHMENT_FILE_URL") %>js/admin/commonedit.js?v=<%=G.VERSION %>" type="text/javascript"></script>
 
-<script type="text/javascript">
-//得到当前版本号，用于版本更新后提醒更新内容
-versionUpdateRemind('<%=G.VERSION %>');
-</script>
-<!-- 版本提示结束 -->
 
 <style>
 .iw_table tbody tr .iw_table_td_view_name{
@@ -31,6 +22,38 @@ versionUpdateRemind('<%=G.VERSION %>');
 <div style="text-align:center; font-size:29px; padding-top:35px; padding-bottom: 10px;">
 	欢迎登录 <%=Global.get("SITE_NAME") %>云建站系统
 </div>
+
+
+<div class="layui-tab" id="gonggao" style="display:none; margin-left: 30px; margin-right: 30px;">
+  <ul class="layui-tab-title">
+    <li class="layui-this">公告信息</li>
+    <li>联系</li>
+  </ul>
+  <div class="layui-tab-content" style="font-size:14px;">
+    <div class="layui-tab-item layui-show" id="parentAgencyNotice">${parentAgencyNotice }</div>
+    <div class="layui-tab-item">
+    	名称：${parentAgency.name }<br/>
+    	电话：${parentAgency.phone }<br/>
+    	QQ：${parentAgency.qq }<br/>
+    	地址：${parentAgency.address }
+    </div>
+  </div>
+</div>
+<script>
+//注意：选项卡 依赖 element 模块，否则无法进行功能性操作
+layui.use('element', function(){
+  var element = layui.element;
+});
+try{
+	document.getElementById('parentAgencyNotice').innerHTML = document.getElementById('parentAgencyNotice').innerHTML.replace(/\n/g,"<br/>");
+}catch(e){}
+try{
+	if(document.getElementById('parentAgencyNotice').innerHTML.length > 1){
+		document.getElementById('gonggao').style.display='';
+	}
+}catch(e){}
+</script>
+
 <table class="layui-table iw_table" lay-even lay-skin="nob" style="margin:3%; width:94%;">
 	<tbody>
 		<tr>
@@ -127,7 +150,7 @@ function getTr(name, value){
 		//忽略
 		return "";
 	}else{
-		return '<tr><td>'+name+'</td><td>'+value+'</td></tr>';
+		return '<tr><td style="width:45px;">'+name+'</td><td>'+value+'</td></tr>';
 	}
 }
 //弹出其上级代理的信息
@@ -149,7 +172,6 @@ function jumpParentAgency(){
 }
 
 
-
 //代理开通15日内，登录会弹出网站快速开通的视频说明
 try {
 	var currentTime = Date.parse( new Date() ).toString();
@@ -163,13 +185,17 @@ try {
 		  ,shade: 0
 		  ,offset: 'rb'
 		  ,maxmin: true
-		  ,content: 'http://www.wscso.com/jianzhanDemo.html'
+		  ,content: '${AGENCYUSER_FIRST_USE_EXPLAIN_URL}'
 		  ,zIndex: layer.zIndex //重点1
 		});
 	}
 } catch(error) {}
 </script>
 
-
+<script type="text/javascript">
+//得到当前版本号，用于版本更新后提醒更新内容
+versionUpdateRemind('<%=G.VERSION %>');
+</script>
+<!-- 版本提示结束 -->
 
 <jsp:include page="../iw/common/foot.jsp"></jsp:include>  

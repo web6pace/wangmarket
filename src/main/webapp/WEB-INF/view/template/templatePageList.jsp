@@ -4,14 +4,10 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>  
 <%@ taglib uri="http://www.xnx3.com/java_xnx3/xnx3_tld" prefix="x" %>
-<%
-String path = request.getContextPath();
-String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
-%>
 <jsp:include page="../iw/common/head.jsp">
 	<jsp:param name="title" value="模版页面列表"/>
 </jsp:include>
-<script src="<%=basePath+Global.CACHE_FILE %>TemplatePage_type.js"></script>
+<script src="/<%=Global.CACHE_FILE %>TemplatePage_type.js"></script>
 
 <table class="layui-table" id="xnx3_body" style="margin:0px;">
   <thead>
@@ -32,7 +28,7 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
             <td>${templatePage['remark'] }</td>
             <td style="width:160px;">
             	 <button onclick="editTemplatePageAttribute('${templatePage['name'] }');" class="layui-btn layui-btn-sm"><i class="layui-icon">&#xe614;</i></button>
-            	 <button onclick="editText('${templatePage['name'] }', ${templatePage['type'] });" class="layui-btn layui-btn-sm"><i class="layui-icon">&#xe642;</i></button>
+            	 <button onclick="editText('${templatePage['name'] }', ${templatePage['type'] }, '${templatePage['editMode'] }');" class="layui-btn layui-btn-sm"><i class="layui-icon">&#xe642;</i></button>
             	 <button onclick="deleteTemplatePage('${templatePage['id'] }', '${templatePage['name'] }');" class="layui-btn layui-btn-sm"><i class="layui-icon">&#xe640;</i></button>
 			</td>
         </tr>
@@ -58,15 +54,18 @@ var index = parent.layer.getFrameIndex(window.name); //获取窗口索引
  * 编辑页面的内容代码
  * @param name TemplatePage.name要编辑的模版页面名字
  * @param templateType 当前模版页的类型
+ * @param templateEditMode 编辑方式，1:智能模式； 2:代码模式
  */
-function editText(name, templateType){
-	if(parent.currentMode == 2){
-		//要将其切换回智能模式
-		parent.window.htmledit_mode();
-	}
-
+function editText(name, templateType, templateEditMode){
 	parent.document.getElementById("currentTemplatePageName").value = name;
-	parent.loadIframe();
+	if(templateEditMode == '2'){
+		//要编辑的模版页面是代码模式
+		parent.codeEditMode();
+	}else{
+		//要编辑的模版页面是智能模式
+		parent.loadIframe();
+	}
+	
 	
 	try{
 		if(templateType == <%=TemplatePage.TYPE_INDEX %>){
@@ -102,7 +101,7 @@ function editText(name, templateType){
 		}
 	}catch(err){}
 	
-	//parent.document.getElementById('iframe').src='<%=basePath %>template/getTemplatePageText.do?pageName='+name;
+	//parent.document.getElementById('iframe').src='/template/getTemplatePageText.do?pageName='+name;
 	parent.layer.close(index);
 }
 
@@ -115,7 +114,7 @@ function addTemplatePage(){
 		title:'添加模版页', 
 		area: ['400px', '350px'],
 		shadeClose: true, //开启遮罩关闭
-		content: '<%=basePath %>template/templatePage.do'
+		content: '/template/templatePage.do'
 	});
 }
 
@@ -129,7 +128,7 @@ function editTemplatePageAttribute(pageName){
 		title:'编辑模版页属性', 
 		area: ['400px', '350px'],
 		shadeClose: true, //开启遮罩关闭
-		content: '<%=basePath %>template/templatePage.do?pageName='+pageName
+		content: '/template/templatePage.do?pageName='+pageName
 	});
 }
 
@@ -144,7 +143,7 @@ function deleteTemplatePage(id, name){
 	}, function(){
 		layer.close(dtp_confirm);
 		parent.iw.loading('删除中');
-		$.post('<%=basePath %>template/deleteTemplatePage.do?id='+id, function(data){
+		$.post('/template/deleteTemplatePage.do?id='+id, function(data){
 			parent.iw.loadClose();
 			if(data.result == '1'){
 				parent.iw.msgSuccess("删除成功");
@@ -160,5 +159,10 @@ function deleteTemplatePage(id, name){
 	});
 }
 </script>
+
+
+<!-- 自动跳转到指定页面进行编辑 -->
+${autoEditText }
+
 </body>
 </html>

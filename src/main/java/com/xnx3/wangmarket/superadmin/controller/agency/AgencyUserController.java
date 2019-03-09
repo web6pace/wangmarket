@@ -3,13 +3,9 @@ package com.xnx3.wangmarket.superadmin.controller.agency;
 import java.util.List;
 import java.util.Map;
 import java.util.Random;
-
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-
 import net.sf.json.JSONArray;
-
-import org.apache.shiro.SecurityUtils;
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.apache.shiro.crypto.hash.Md5Hash;
 import org.springframework.stereotype.Controller;
@@ -17,7 +13,6 @@ import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-
 import com.aliyun.openservices.log.exception.LogException;
 import com.xnx3.DateUtil;
 import com.xnx3.Lang;
@@ -31,7 +26,6 @@ import com.xnx3.j2ee.func.Language;
 import com.xnx3.j2ee.service.ApiService;
 import com.xnx3.j2ee.service.SqlService;
 import com.xnx3.j2ee.service.UserService;
-import com.xnx3.j2ee.shiro.ShiroFunc;
 import com.xnx3.j2ee.util.IpUtil;
 import com.xnx3.j2ee.util.Page;
 import com.xnx3.j2ee.util.Sql;
@@ -45,7 +39,10 @@ import com.xnx3.wangmarket.admin.service.SiteService;
 import com.xnx3.wangmarket.admin.util.AliyunLog;
 import com.xnx3.wangmarket.admin.vo.SiteVO;
 import com.xnx3.wangmarket.admin.vo.UserVO;
+import com.xnx3.wangmarket.domain.bean.MQBean;
+import com.xnx3.wangmarket.domain.bean.SimpleSite;
 import com.xnx3.wangmarket.superadmin.entity.Agency;
+import com.xnx3.wangmarket.superadmin.entity.AgencyData;
 import com.xnx3.wangmarket.superadmin.service.TransactionalService;
 import com.xnx3.wangmarket.superadmin.util.SiteSizeChangeLog;
 
@@ -80,14 +77,19 @@ public class AgencyUserController extends BaseController {
 		if(agency == null){
 			return error(model, "代理信息出错！");
 		}
+		//上级代理的变长表数据
+		AgencyData parentAgencyData = getParentAgencyData();
 		
 		AliyunLog.addActionLog(agency.getId(), "进入代理商后台首页");
 		User user = sqlService.findById(User.class, getUserId());
 		model.addAttribute("user", user);
 		model.addAttribute("agency", agency);
 		model.addAttribute("parentAgency", getParentAgency());	//上级代理
+		//上级代理的公告内容，要显示出来的
+		model.addAttribute("parentAgencyNotice", parentAgencyData == null ? "":parentAgencyData.getNotice());
 		model.addAttribute("apiKey", apiService.getKey());
 		model.addAttribute("im_kefu_websocketUrl", com.xnx3.wangmarket.im.Global.websocketUrl);
+		model.addAttribute("AGENCYUSER_FIRST_USE_EXPLAIN_URL", Global.get("AGENCYUSER_FIRST_USE_EXPLAIN_URL"));
 		return "agency/index";
 	}
 	
@@ -196,7 +198,7 @@ public class AgencyUserController extends BaseController {
 		
 
 		//要创建得网站得user
-		user.setReferrerid(agency.getId());
+		user.setReferrerid(agency.getUserid());
 		
 		Site site = new Site();
 		site.setName(filter(siteName));
@@ -233,7 +235,7 @@ public class AgencyUserController extends BaseController {
 		//要创建得网站得user
 		User user = new User();
 		user.setReferrerid(userVO.getUser().getId());
-		user.setUsername(username);
+		user.setUsername(filter(username));
 		user.setPassword(password);
 		
 		Site site = new Site();
@@ -259,7 +261,6 @@ public class AgencyUserController extends BaseController {
 			String email
 		){
 		
-//		Agency agency = sqlService.findById(Agency.class, getMyAgency().getId());
 		if(agency.getSiteSize() == 0){
 			return error("您的账户余额还剩 "+agency.getSiteSize()+" 站，不足以再开通网站！请联系相关人员充值");
 		}
@@ -271,27 +272,17 @@ public class AgencyUserController extends BaseController {
 			return error("请输入1～30个字符的要建立的站点名字");
 		}
 		
-		//创建用户
+		//创建用户 
 		user.setPhone(filter(site.getPhone()));
 		user.setEmail(filter(email));
 		user.setOssSizeHave(agency.getRegOssHave());
-		UserVO vo = regUser(user, request, false);
+		UserVO vo = transactionalService.regUser(user, request, false);
+//		UserVO vo = regUser(user, request, false);
 		if(vo.getResult() == BaseVO.SUCCESS){
 			
 			//创建站点
 			site.setExpiretime(DateUtil.timeForUnix10() + 31622400);	//到期，一年后，366天后
-			
-//			if(site.getClient() - Site.CLIENT_PC == 0){
-//				//通用模版，电脑站
-//				site.setTemplateId(G.TEMPLATE_PC_DEFAULT);
-//			}else if(site.getClient() - Site.CLIENT_WAP == 0){
-//				//通用模版，手机站
-//				site.setTemplateId(G.TEMPLATE_WAP_DEFAULT);
-//			}else if(site.getClient() - Site.CLIENT_CMS == 0){
-//				//高级自定义模版CMS
-//				site.setTemplateId(0);
-//			}
-			
+
 			site.setmShowBanner(Site.MSHOWBANNER_SHOW);
 			SiteVO siteVO = siteService.saveSite(site, vo.getUser().getId(), request);
 			if(siteVO.getResult() == SiteVO.SUCCESS){
@@ -422,16 +413,14 @@ public class AgencyUserController extends BaseController {
 		if(myAgency.getSiteSize() < G.agencyAddSubAgency_siteSize){
 			return error("您的账户余额还剩 "+myAgency.getSiteSize()+" 站币，不足以再开通下级！请联系您的上级充值");
 		}
-		
-//		if(phone.length() != 11){
-//			return error("请输入11位数的联系人手机号");
-//		}
-//		
+
 		//创建用户
 		user.setOssSizeHave(myAgency.getRegOssHave());
 		user.setPhone(filter(phone));
 		user.setEmail(filter(email));
-		UserVO vo = regUser(user, request, true);
+		user.setReferrerid(myAgency.getUserid());
+		UserVO vo = transactionalService.regUser(user, request, true);
+//		UserVO vo = regUser(user, request, true);
 		if(vo.getResult() == BaseVO.SUCCESS){
 			//创建完用户了，再创建代理
 			Agency agency = new Agency();
@@ -491,8 +480,11 @@ public class AgencyUserController extends BaseController {
 	 * @param isAgency 是否是开通的普通代理，true，是开通普通代理
 	 * @return 生成的用户User对象
 	 */
-	private UserVO regUser(User user, HttpServletRequest request, boolean isAgency) {
+	private UserVO regUsersss(User user, HttpServletRequest request, boolean isAgency) {
 		UserVO baseVO = new UserVO();
+		user.setUsername(filter(user.getUsername()));
+		user.setEmail(filter(user.getEmail()));
+		user.setPhone(filter(user.getPhone()));
 		
 		//判断用户名、邮箱、手机号是否有其中为空的
 		if(user.getUsername()==null||user.getUsername().equals("")){
@@ -639,7 +631,7 @@ public class AgencyUserController extends BaseController {
 	
 
 	/**
-	 * 我的下级代理商列表
+	 * 我的下级网站列表
 	 * @param request
 	 * @param model
 	 * @return
@@ -649,7 +641,7 @@ public class AgencyUserController extends BaseController {
 	public String userList(HttpServletRequest request, Model model){
 		Sql sql = new Sql(request);
 		sql.setSearchTable("user");
-		sql.appendWhere("user.referrerid = "+getUserId()+" AND user.authority = "+Global.getInt("ALLOW_USER_REG"));
+		sql.appendWhere("user.referrerid = "+getUserId()+" AND user.authority = "+Global.getInt("USER_REG_ROLE"));
 		sql.setSearchColumn(new String[]{"username","email","phone","userid="});
 		int count = sqlService.count("user", sql.getWhere());
 		Page page = new Page(count, G.PAGE_WAP_NUM, request);
@@ -729,7 +721,11 @@ public class AgencyUserController extends BaseController {
 		AliyunLog.addActionLog(site.getId(), getMyAgency().getName()+"将网站"+site.getName()+"暂停");
 		
 		//更新域名服务器
-		siteService.updateDomainServers(site);
+		MQBean mqBean = new MQBean();
+		mqBean.setType(MQBean.TYPE_STATE);
+//		mqBean.setOldValue(oldDomain);
+		mqBean.setSimpleSite(new SimpleSite(site));
+		siteService.updateDomainServers(mqBean);
 		
 		return success();
 	}
@@ -765,7 +761,10 @@ public class AgencyUserController extends BaseController {
 		AliyunLog.addActionLog(site.getId(), getMyAgency().getName()+"将暂停的网站"+site.getName()+"恢复正常");
 		
 		//更新域名服务器
-		siteService.updateDomainServers(site);
+		MQBean mqBean = new MQBean();
+		mqBean.setType(MQBean.TYPE_STATE);
+		mqBean.setSimpleSite(new SimpleSite(site));
+		siteService.updateDomainServers(mqBean);
 		
 		return success();
 	}
@@ -967,5 +966,6 @@ public class AgencyUserController extends BaseController {
 		model.addAttribute("user", getUser());
 		return "agency/autoCreateSite";
 	}
+	
 	
 }

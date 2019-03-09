@@ -1,6 +1,10 @@
 package com.xnx3.wangmarket.admin.cache;
 
 import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.Date;
+import java.util.GregorianCalendar;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -11,12 +15,14 @@ import com.xnx3.bean.TagA;
 import com.xnx3.j2ee.Global;
 import com.xnx3.j2ee.util.Page;
 import com.xnx3.wangmarket.admin.Func;
-import com.xnx3.wangmarket.admin.G;
+import com.xnx3.wangmarket.admin.bean.NewsDataBean;
 import com.xnx3.wangmarket.admin.entity.News;
 import com.xnx3.wangmarket.admin.entity.Site;
 import com.xnx3.wangmarket.admin.entity.SiteColumn;
+import com.xnx3.wangmarket.admin.util.TemplateUtil;
 import com.xnx3.j2ee.func.AttachmentFile;
 import com.xnx3.wangmarket.admin.vo.SiteColumnTreeVO;
+import com.xnx3.wangmarket.admin.vo.TemplateVO;
 
 /**
  * CMS模版
@@ -25,6 +31,36 @@ import com.xnx3.wangmarket.admin.vo.SiteColumnTreeVO;
 public class TemplateCMS {
 	private int linuxTime;	//当前时间戳
 	private Site site;			//当前站点信息
+	private com.xnx3.wangmarket.admin.entity.Template template;	//当前站点所使用的模版。注意，有的站点是没有的，比如自定义模版的用户，那么 {templatePath} 默认就用本地的。 这个对象永远不会为null，即使为null，也会默认创建一个出来，设定 resourceImport
+	private String templatePathDomain = null;	//当前模版所使用的资源文件路径，如本地的则是 ....../websiteTemplate/.....，  云端则是 //cdn.weiunity.com/websiteTemplate/...  根据template 来判断，判断是从数据库中取的还是从云端同步模版取的。如果是从数据库取的，肯定是用本地资源，如果是云端取的，当然就是云端资源了
+	
+	public final static String TEMPLATE_CLOUD_PATH;	//云端资源库路径，云端引用的js、css都是通过这个。格式如： http://cloudtemplate.weiunity.com/
+	//模版引用路径。v4.7增加，值如 http://wang.market/template/
+	public final static String TEMPLATE_PRIVATE_PATH;
+	static{
+		TEMPLATE_PRIVATE_PATH = Global.get("ATTACHMENT_FILE_URL")+"websiteTemplate/";
+		TEMPLATE_CLOUD_PATH = "//cloudtemplate.weiunity.com/websiteTemplate/";
+	}
+	
+	/**
+	 * 获取当前模版所使用的资源文件路径
+	 * @return 如 //cloudtemplate.weiunity.com/websiteTemplate/templateName/
+	 */
+	public String getTemplatePath(){
+		if(templatePathDomain == null){
+			//判断 template 是从数据库取的，还是从云端取的。
+			//首先判断是否是从本地模版库取的
+			if(this.template != null && TemplateUtil.databaseTemplateMapForName.get(this.template.getName()) != null){
+				//本地模版库有，则是从从数据库取的
+				templatePathDomain = TEMPLATE_PRIVATE_PATH;
+			}else{
+				//本地模版库没有，则认为是从云端模版库取的
+				templatePathDomain = TEMPLATE_CLOUD_PATH;
+			}
+			templatePathDomain = templatePathDomain + site.getTemplateName() + "/";
+		}
+		return templatePathDomain;
+	}
 	
 	/**
 	 * CMS模式网站，生成html页面时的命名规则，wang.market的兼容以前版本，255编号以前的使用int规则，免得影响了做SEO的站点。其他的，包括其他服务器或者其他代理使用此程序创建，都是用code规则即可
@@ -35,13 +71,29 @@ public class TemplateCMS {
 	
 	private boolean editMode = false;	//当前是否为编辑模式，默认为false，不是编辑模式，为生成模式 
 	
+	
+	public TemplateCMS(Site site, TemplateVO templateVO) {
+		com.xnx3.wangmarket.admin.entity.Template template = null;
+		if(templateVO != null && templateVO.getTemplate() != null){
+			template = templateVO.getTemplate();
+		}
+		this.templateCMS(site, template);
+	}
+	
 	/**
 	 * 默认editMode为生成模式
 	 * @param site
 	 */
-	public TemplateCMS(Site site) {
+	public TemplateCMS(Site site, com.xnx3.wangmarket.admin.entity.Template template) {
+		this.templateCMS(site, template);
+	}
+	
+	//构造方法都会调用此初始化
+	private void templateCMS(Site site, com.xnx3.wangmarket.admin.entity.Template template){
 		linuxTime = DateUtil.timeForUnix10();
 		this.site = site;
+		
+		this.template = template;
 		
 		if(Global.get("MASTER_SITE_URL") != null && Global.get("MASTER_SITE_URL").equals("http://wang.market/")){
 			if(site.getId() - 255 > 0){
@@ -58,7 +110,7 @@ public class TemplateCMS {
 		}
 		
 	}
-
+	
 	/**
 	 * @param editMode 是否为编辑模式
 	 * 		<ul>
@@ -69,7 +121,6 @@ public class TemplateCMS {
 	 */
 	public TemplateCMS(Site site, boolean editMode) {
 		linuxTime = DateUtil.timeForUnix10();
-//		this.templateId = site.getTemplateId();
 		this.site = site;
 		this.editMode = editMode;
 	}
@@ -104,6 +155,8 @@ public class TemplateCMS {
 		text = text.replaceAll(regex("site.companyName"), site.getCompanyName());
 		
 		text = text.replaceAll(regex("masterSiteUrl"), Global.get("MASTER_SITE_URL"));
+		//v4.7增加
+		text = text.replaceAll(regex("templatePath"), getTemplatePath());
 		
 		return text;
 	}
@@ -182,8 +235,10 @@ public class TemplateCMS {
 		text = text.replaceAll(regex("siteColumn.type"), siteColumn.getType()+"");
 		text = text.replaceAll(regex("siteColumn.used"), siteColumn.getUsed()+"");
 		text = text.replaceAll(regex("siteColumn.codeName"), siteColumn.getCodeName());
-		text = text.replaceAll(regex("siteColumn.parentCodeName"), siteColumn.getParentCodeName()+"");
-		
+		text = text.replaceAll(regex("siteColumn.parentCodeName"), (siteColumn.getParentCodeName() == null || siteColumn.getParentCodeName().equals("")) ? siteColumn.getCodeName() : siteColumn.getParentCodeName());
+		//v4.7
+		text = text.replaceAll(regex("siteColumn.icon"), (siteColumn.getIcon() == null? "":siteColumn.getIcon()).replace("{templatePath}", getTemplatePath()));
+				
 		//判断栏目的链接地址
 		String url = "";
 		if(this.generateUrlRule.equals("code")){
@@ -191,10 +246,10 @@ public class TemplateCMS {
 			url = siteColumn.getCodeName()+".html";
 		}else{
 			//id.html
-			if(siteColumn.getType() - SiteColumn.TYPE_NEWS == 0 || siteColumn.getType() - SiteColumn.TYPE_IMAGENEWS == 0){
+			if(siteColumn.getType() - SiteColumn.TYPE_LIST == 0 || siteColumn.getType() - SiteColumn.TYPE_NEWS == 0 || siteColumn.getType() - SiteColumn.TYPE_IMAGENEWS == 0){
 				//新闻、图文列表页面
 				url = "lc"+siteColumn.getId()+"_1.html";
-			}else if (siteColumn.getType() - SiteColumn.TYPE_PAGE == 0) {
+			}else if (siteColumn.getType() - SiteColumn.TYPE_ALONEPAGE == 0 || siteColumn.getType() - SiteColumn.TYPE_PAGE == 0) {
 				//独立页面
 				url = "c"+siteColumn.getId()+".html";
 			}
@@ -210,9 +265,10 @@ public class TemplateCMS {
 	 * @param newsText 要替换的news标签的模版内容
 	 * @param news {@link News}对象，提供具体替换的数据
 	 * @param siteColumn {@link SiteColumn}主要用到生成独立页面时，栏目代码作为html的文件名
+	 * @param newsDataBean news_data数据表的加工
 	 * @return 返回替换好的内容
 	 */
-	public String replaceNewsTag(String newsText,News news, SiteColumn siteColumn){
+	public String replaceNewsTag(String newsText,News news, SiteColumn siteColumn, NewsDataBean newsDataBean){
 		//获取到文章图片
 		String titlePic = news.getTitlepic();
 		if(titlePic == null){
@@ -224,9 +280,15 @@ public class TemplateCMS {
 		text = text.replaceAll(regex("news.title"), news.getTitle());
 		text = text.replaceAll(regex("news.intro"), news.getIntro()+"");
 		text = text.replaceAll(regex("news.cid"), news.getCid()+"");
-
-		//文章头图在正常访问时，使用相对路径
-		if(titlePic.indexOf("http://") == -1){
+		//v4.5增加以下两个预留字段
+		text = text.replaceAll(regex("news.reserve1"), news.getReserve1());
+		text = text.replaceAll(regex("news.reserve2"), news.getReserve2());
+		
+		//文章头图在正常访问时，使用相对路径  
+		if(titlePic.indexOf("//") == 0 || titlePic.indexOf("http://") == 0 || titlePic.indexOf("https://") == 0){
+			//用的绝对路径，这里不用做任何补充
+		}else{
+			//用的相对路径，要加个东西了，不过CMS模式的好像没有这样的了。v4.8版本更新检测到此处，此处属于基本废弃功能，暂时先保留
 			titlePic = "news/"+titlePic;
 		}
 		text = text.replaceAll(regex("news.titlepic"), titlePic);
@@ -235,7 +297,7 @@ public class TemplateCMS {
 		if(this.generateUrlRule.equals("code")){
 			//code.html模式
 
-			if(siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
+			if(siteColumn.getType() - SiteColumn.TYPE_ALONEPAGE == 0 || siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
 				//独立页面，直接使用code.html
 				text = text.replaceAll(regex("news.url"), siteColumn.getCodeName()+".html");
 			}else{
@@ -245,13 +307,45 @@ public class TemplateCMS {
 		}else{
 			//id.html模式
 			
-			if(siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
+			if(siteColumn.getType() - SiteColumn.TYPE_ALONEPAGE == 0 || siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
 				//独立页面，直接使用c+sitecolumn.id.html
 				text = text.replaceAll(regex("news.url"), "c"+siteColumn.getId()+".html");
 			}else{
 				//列表的某条内容页，则使用通用的id.html
 				text = text.replaceAll(regex("news.url"), news.getId()+".html");
 			}
+		}
+		
+		text = Template.replaceAll(text, Template.regex("news.text"), replaceNewsText(newsDataBean.getText()));	//替换新闻内容的详情
+		
+		//v4.6增加
+		//如果模版里面使用了 extend 调取，那么进行此相关替换
+		if(text.indexOf("{news.extend.") > -1){
+			Pattern p = Pattern.compile(Template.regex("news.extend.(\\w*?)"));
+	        Matcher m = p.matcher(text);
+	        //用map来过滤重复的key 。 这里value是没什么用的
+	        Map<String, Boolean> map = new HashMap<String, Boolean>();
+	        while(m.find()){
+	        	String key = m.group(1);	//得到key，以便组合 {news.extend.?}
+	        	map.put(key, true);	//将得到的key加入map中，以起到排重的作用
+	        }
+	        for (Map.Entry<String, Boolean> entry : map.entrySet()) {
+	        	text = Template.replaceAll(text, Template.regex("news.extend."+entry.getKey()), newsDataBean.getExtendJson(entry.getKey()));	//替换新闻内容的详情
+	        }
+		}
+		
+		//v4.7 增加 {news.addtime.day} 、 {news.addtime.month} 、 {news.addtime.year} 、 hour 、 minute
+		if(text.indexOf("{news.addtime.") > -1){
+			long time = news.getAddtime();
+			Calendar c = new GregorianCalendar();
+			c.setTime(new Date(time * 1000));
+			
+			text = text.replaceAll(regex("news.addtime.year"), c.get(Calendar.YEAR)+"");
+			text = text.replaceAll(regex("news.addtime.month"), (c.get(Calendar.MONTH) + 1)+"");
+			text = text.replaceAll(regex("news.addtime.day"), c.get(Calendar.DAY_OF_MONTH)+"");
+			text = text.replaceAll(regex("news.addtime.hour"), c.get(Calendar.HOUR_OF_DAY)+"");
+			text = text.replaceAll(regex("news.addtime.minute"), c.get(Calendar.MINUTE)+"");
+			text = text.replaceAll(regex("news.addtime.second"), c.get(Calendar.SECOND)+"");
 		}
 		
 		return text;
@@ -302,11 +396,13 @@ public class TemplateCMS {
 	 * @param listTemplateHtml 当前栏目所使用的列表模版页的模版内容
 	 * @param siteColumn {@link SiteColumn} 当前栏目的信息
 	 * @param list 当前栏目列表页面的{@link News}列表
+	 * @param newsDataMap 对 newsDataList 网站文章的内容进行调整，调整为map key:newsData.id  value:NewsDataBean
+	 * @param columnMapForId 栏目map，以栏目id为key，用id来取栏目
 	 */
-	public void generateListHtmlForWholeSite(String listTemplateHtml, SiteColumn siteColumn, List<News> newList){
+	public void generateListHtmlForWholeSite(String listTemplateHtml, SiteColumn siteColumn, List<News> newList, Map<Integer, NewsDataBean> newsDataMap, Map<Integer, SiteColumn> columnMapForId){
 		Site site = Func.getCurrentSite();
 		int count = newList.size();	//当前列表的总条数
-		
+				
 		//拿到列表模版中的 列表项 模版
 		String listItemTemplate = getListItemTemplate(listTemplateHtml);
 		
@@ -343,13 +439,21 @@ public class TemplateCMS {
 					
 					//得到当前列表项对象 News
 					News news = newList.get(indexJ);
+					
 					//替换每个 列表项 模版，将替换好的加入要显示的列表StringBuffer中
-					itemsBuffer.append(replaceNewsTag(listItemTemplate, news, siteColumn));
+					//替换文章标签
+					String newsHTML = replaceNewsTag(listItemTemplate, news, siteColumn, newsDataMap.get(news.getId()));
+					//判断列表项里面是否有栏目标签，如果有的话，还要替换栏目标签。替换的栏目标签为当前文章所属的栏目
+					if(newsHTML.indexOf("siteColumn") > -1){
+						//替换当前文章的直属栏目信息，栏目标签
+						newsHTML = replaceSiteColumnTag(newsHTML, columnMapForId.get(news.getCid()));
+					}
+					
+					itemsBuffer.append(newsHTML);
 				}
-				currentListHtml = currentListHtml.replaceAll("<!--TemplateListItemStart-->([\\s|\\S]*?)<!--TemplateListItemEnd-->", itemsBuffer.toString());
 				
+				currentListHtml = currentListHtml.replaceAll("<!--TemplateListItemStart-->([\\s|\\S]*?)<!--TemplateListItemEnd-->", itemsBuffer.toString());
 			}
-			listTemplateHtml = replaceSiteColumnTag(listTemplateHtml, siteColumn);	//替换栏目相关标签
 			
 			//写出列表页面的HTML文件
 			AttachmentFile.putStringFile("site/"+site.getId()+"/" + generateSiteColumnListPageHtmlName(siteColumn, i) + ".html", currentListHtml);
@@ -361,56 +465,27 @@ public class TemplateCMS {
 	 * <b>适合生成单个页面，会挨个标签都进行替换</b>
 	 * @param news 要生成的详情页的 {@link News}
 	 * @param siteColumn 要生成的详情页所属的栏目 {@link SiteColumn}
-	 * @param text 内容，NewsData.text
+	 * @param newsDataBean news_data整理的json对象
 	 * @param templateHtml 当前页面使用的内容模版
 	 * @param upNews 上一篇文章的 {@link News} 可为空，表示没有上一篇。没有时会显示返回列表
 	 * @param nextNews 下一篇文章的 {@link News} 可为空，表示没有下一篇。没有时会显示返回列表
 	 */
-	public void generateViewHtmlForTemplate(News news, SiteColumn siteColumn, String text, String templateHtml, News upNews, News nextNews) {
+	public void generateViewHtmlForTemplatesss(News news, SiteColumn siteColumn, NewsDataBean newsDataBean, String templateHtml, News upNews, News nextNews) {
 		if(templateHtml == null){
 			//出错，没有获取到该栏目的模版页
 			return;
 		}
-		Site site = Func.getCurrentSite();
-		TemplateCMS template = new TemplateCMS(site);
-		String pageHtml = template.assemblyTemplateVar(templateHtml);	//装载模版变量
-		pageHtml = template.replaceSiteColumnTag(pageHtml, siteColumn);	//替换栏目相关标签
-		pageHtml = template.replacePublicTag(pageHtml);		//替换通用标签
-		pageHtml = template.replaceNewsTag(pageHtml, news, siteColumn);	//替换news相关标签
+		String pageHtml = assemblyTemplateVar(templateHtml);	//装载模版变量
+		pageHtml = replaceSiteColumnTag(pageHtml, siteColumn);	//替换栏目相关标签
+		pageHtml = replacePublicTag(pageHtml);		//替换通用标签
+		pageHtml = replaceNewsTag(pageHtml, news, siteColumn, newsDataBean);	//替换news相关标签
 		
 		//替换 SEO 相关
 		pageHtml = pageHtml.replaceAll(Template.regex("title"), news.getTitle()+"_"+site.getName());
 		pageHtml = pageHtml.replaceAll(Template.regex("keywords"), news.getTitle()+","+site.getKeywords());
 		pageHtml = Template.replaceAll(pageHtml, Template.regex("description"), news.getIntro());
 		
-		pageHtml = Template.replaceAll(pageHtml, Template.regex("text"), template.replaceNewsText(text));	//替换新闻内容的详情
-		
-		String generateUrl = "";
-		if(siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
-			generateUrl = "site/"+site.getId()+"/"+ generateNewsPageHtmlName(siteColumn, news) +".html";
-		}else{
-			//若是当前页面是列表页的内容详情时，支持上一页、下一页的功能
-			
-			String upPage;	//上一页的超链接
-			String nextPage;	//下一页的超链接
-			if(upNews == null){
-				upPage = "<a href=\"lc"+siteColumn.getId()+"_1.html\" target=\"_black\">返回列表</a>";
-			}else{
-				upPage = "<a href=\""+upNews.getId()+".html\" target=\"_black\">"+upNews.getTitle()+"</a>";
-			}
-			if(nextNews == null){
-				nextPage = "<a href=\"lc"+siteColumn.getId()+"_1.html\" target=\"_black\">返回列表</a>";
-			}else{
-				nextPage = "<a href=\""+nextNews.getId()+".html\" target=\"_black\">"+nextNews.getTitle()+"</a>";
-			}
-			
-			pageHtml = pageHtml.replaceAll(Template.regex("upPage"), upPage);
-			pageHtml = pageHtml.replaceAll(Template.regex("nextPage"), nextPage);
-			
-			generateUrl = "site/"+site.getId()+"/"+generateNewsPageHtmlName(siteColumn, news)+".html";
-		}
-		
-		AttachmentFile.putStringFile(generateUrl, pageHtml);
+		generateNewsHtml(news, siteColumn, upNews, nextNews, pageHtml, newsDataBean);
 	}
 
 	/**
@@ -456,7 +531,7 @@ public class TemplateCMS {
 		if(this.generateUrlRule.equals("code")){
 			//使用栏目代码作为页面名字
 			
-			if(siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
+			if(siteColumn.getType() - SiteColumn.TYPE_ALONEPAGE == 0 || siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
 				//独立页面，直接使用栏目代码 code.html
 				return siteColumn.getCodeName();
 			}else{
@@ -465,7 +540,7 @@ public class TemplateCMS {
 			}
 		}else{
 			//使用栏目id编号作为栏目名字(CMS模式要废弃,兼容原本的)
-			if(siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
+			if(siteColumn.getType() - SiteColumn.TYPE_ALONEPAGE == 0 || siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
 				//独立页面，直接使用栏目代码 code.html
 				return "c"+news.getCid();
 			}else{
@@ -480,61 +555,81 @@ public class TemplateCMS {
 	 * <b>前提是传入的 templateHtml 内容页模版已经替换过通用标签、动态栏目调用标签、装载完模版变量了，这里直接进行替换栏目以及文章标签相关</b>
 	 * @param news 要生成的详情页的 {@link News}
 	 * @param siteColumn 要生成的详情页所属的栏目 {@link SiteColumn}
-	 * @param text 内容，NewsData.text
+	 * @param newsDataBean news_data 整理的，加入了json的数据对象
 	 * @param templateHtml 当前页面使用的内容模版
 	 * @param upNews 上一篇文章的 {@link News} 可为空，表示没有上一篇。没有时会显示返回列表
 	 * @param nextNews 下一篇文章的 {@link News} 可为空，表示没有下一篇。没有时会显示返回列表
 	 */
-	public void generateViewHtmlForTemplateForWholeSite(News news, SiteColumn siteColumn, String text, String templateHtml, News upNews, News nextNews) {
+	public void generateViewHtmlForTemplateForWholeSite(News news, SiteColumn siteColumn, NewsDataBean newsDataBean, String templateHtml, News upNews, News nextNews) {
 		if(templateHtml == null){
 			//出错，没有获取到该栏目的模版页
 			return;
 		}
-		Site site = Func.getCurrentSite();
-		TemplateCMS template = new TemplateCMS(site);
-		String pageHtml = template.replaceSiteColumnTag(templateHtml, siteColumn);	//替换栏目相关标签
+//		TemplateCMS template = new TemplateCMS(site);
+		String pageHtml = replaceSiteColumnTag(templateHtml, siteColumn);	//替换栏目相关标签
 		if(news != null){
-			pageHtml = template.replaceNewsTag(pageHtml, news, siteColumn);	//替换news相关标签
+			pageHtml = replaceNewsTag(pageHtml, news, siteColumn, newsDataBean);	//替换news相关标签
 		}
 		
-		pageHtml = Template.replaceAll(pageHtml, Template.regex("text"), template.replaceNewsText(text));	//替换新闻内容的详情
+		generateNewsHtml(news, siteColumn, upNews, nextNews, pageHtml, newsDataBean);
+	}
+	
+	/**
+	 * 生成文章详情页面的html页面
+	 * @param news 要生成的详情页的 {@link News}
+	 * @param siteColumn 要生成的详情页所属的栏目 {@link SiteColumn}
+	 * @param upNews 上一篇文章的 {@link News} 可为空，表示没有上一篇。没有时会显示返回列表
+	 * @param nextNews 下一篇文章的 {@link News} 可为空，表示没有下一篇。没有时会显示返回列表
+	 * @param pageHtml 当前页面使用的内容模版（替换过一些东西的）
+	 * @param newsDataBean news_data 整理的，加入了json的数据对象
+	 */
+	public void generateNewsHtml(News news, SiteColumn siteColumn, News upNews, News nextNews, String pageHtml, NewsDataBean newsDataBean){
+		pageHtml = Template.replaceAll(pageHtml, Template.regex("text"), replaceNewsText(newsDataBean.getText()));	//替换新闻内容的详情。新版本中这个标签已经废弃，改用了 {news.text}
 		
 		String generateUrl = "";
-		if(siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
+		if(siteColumn.getType() - SiteColumn.TYPE_ALONEPAGE == 0 || siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
 			generateUrl = "site/"+site.getId()+"/"+generateNewsPageHtmlName(siteColumn, news)+".html";
 		}else{
 			//若是当前页面是列表页的内容详情时，支持上一页、下一页的功能
 			
-			String upPage;	//上一页的超链接
-			String nextPage;	//下一页的超链接
-			
+			String upPage;	//上一页的超链接a标签
+			String nextPage;	//下一页的超链接a标签
+			String upPageUrl;	//上一页的url
+			String nextPageUrl;
 			
 			if(upNews == null){
 				if(this.generateUrlRule.equals("code")){
 					//code.html
 					upPage = "<a href=\""+siteColumn.getCodeName()+".html\" target=\"_black\">返回列表</a>";
+					upPageUrl = siteColumn.getCodeName()+".html";
 				}else{
 					//id.html
 					upPage = "<a href=\"lc"+siteColumn.getId()+"_1.html\" target=\"_black\">返回列表</a>";
+					upPageUrl = siteColumn.getId()+"_1.html";
 				}
 			}else{
 				upPage = "<a href=\""+upNews.getId()+".html\" target=\"_black\">"+upNews.getTitle()+"</a>";
+				upPageUrl = upNews.getId()+".html";
 			}
 			if(nextNews == null){
 				if(this.generateUrlRule.equals("code")){
 					//code.html
 					nextPage = "<a href=\""+siteColumn.getCodeName()+".html\" target=\"_black\">返回列表</a>";
+					nextPageUrl = siteColumn.getCodeName()+".html";
 				}else{
 					//id.html
 					nextPage = "<a href=\"lc"+siteColumn.getId()+"_1.html\" target=\"_black\">返回列表</a>";
+					nextPageUrl = siteColumn.getId()+"_1.html";
 				}	
 			}else{
 				nextPage = "<a href=\""+nextNews.getId()+".html\" target=\"_black\">"+nextNews.getTitle()+"</a>";
+				nextPageUrl = nextNews.getId()+".html";
 			}
-			
 			
 			pageHtml = pageHtml.replaceAll(Template.regex("upPage"), upPage);
 			pageHtml = pageHtml.replaceAll(Template.regex("nextPage"), nextPage);
+			pageHtml = pageHtml.replaceAll(Template.regex("upPageUrl"), upPageUrl);
+			pageHtml = pageHtml.replaceAll(Template.regex("nextPageUrl"), nextPageUrl);
 			
 			generateUrl = "site/"+site.getId()+"/"+generateNewsPageHtmlName(siteColumn, news)+".html";
 		}
@@ -641,8 +736,9 @@ public class TemplateCMS {
 	 * 			<li>false：不保留，进行替换，将替换好的内容返回</li>
 	 * 		</ul>
 	 * @param currentSiteColumn 服务于codeRetainDynamicTag，若允许替换动态标签时，动态栏目标签则会从此处来取。即当codeRetainDynamicTag为true时，此处也是用不到的，为null即可
+	 * @param newsDataMap 对 newsDataList 网站文章的内容进行调整，调整为map key:newsData.id  value:newsData.text
 	 */
-	public String replaceSiteColumnBlock(String templateHTML, Map<String, List<News>> columnNewsMap, Map<String, SiteColumn> columnMap, Map<String, SiteColumnTreeVO> columnTreeMap, boolean codeRetainDynamicTag, SiteColumn currentSiteColumn){
+	public String replaceSiteColumnBlock(String templateHTML, Map<String, List<News>> columnNewsMap, Map<String, SiteColumn> columnMap, Map<String, SiteColumnTreeVO> columnTreeMap, boolean codeRetainDynamicTag, SiteColumn currentSiteColumn, Map<Integer, NewsDataBean> newsDataMap){
 		Pattern p = Pattern.compile("<!--SiteColumn_Start-->([\\s|\\S]*?)<!--SiteColumn_End-->");
         Matcher m = p.matcher(templateHTML);
         while(m.find()){
@@ -707,7 +803,7 @@ public class TemplateCMS {
                 			String subColumnNewsTemp = replaceSiteColumnTag(subColumnListTemp, subColumn);
                 			
                 			//替换其中引用的子栏目文章
-                			String str = replaceSiteColumnBlock_replaceNews(subColumnNewsTemp,start_number, number, itemTemp, columnNewsMap, subColumn);
+                			String str = replaceSiteColumnBlock_replaceNews(subColumnNewsTemp,start_number, number, itemTemp, columnNewsMap, subColumn, newsDataMap);
                 			//将子栏目替换栏目标签后，加入 itemBuffer
                 			itemBuffer.append(str);
             			}
@@ -725,7 +821,7 @@ public class TemplateCMS {
             		int number = Template.getConfigValue(siteColumnTemplate, "number", 6);		//当前显示多少条记录，最多显示10条
             		int start_number = Template.getConfigValue(siteColumnTemplate, "start_number", 0);		//当前显示多少条记录
             		String itemTemp = Template.getAnnoCenterString(siteColumnTemplate, "List");		//取得list的列表项内容
-                	siteColumnTemplate = replaceSiteColumnBlock_replaceNews(siteColumnTemplate,start_number, number, itemTemp, columnNewsMap, siteColumn);
+                	siteColumnTemplate = replaceSiteColumnBlock_replaceNews(siteColumnTemplate,start_number, number, itemTemp, columnNewsMap, siteColumn, newsDataMap);
             	}
             	
             	//替换栏目标签
@@ -747,9 +843,10 @@ public class TemplateCMS {
 	 * @param itemTemp 取得list的列表项内容，包含动态标签的列表的模板
 	 * @param columnNewsMap key:栏目代码， value：文章列表
 	 * @param siteColumn 当前栏目
+	 * @param newsDataMap 对 newsDataList 网站文章的内容进行调整，调整为map key:newsData.id  value:newsDataBean
 	 * @return 替换好的html
 	 */
-	private String replaceSiteColumnBlock_replaceNews(String newsListTemplate, int start_number, int number, String itemTemp, Map<String, List<News>> columnNewsMap, SiteColumn siteColumn){
+	private String replaceSiteColumnBlock_replaceNews(String newsListTemplate, int start_number, int number, String itemTemp, Map<String, List<News>> columnNewsMap, SiteColumn siteColumn, Map<Integer, NewsDataBean> newsDataMap){
 		//如果<!--List_Start-->存在，则需要News信息列表
     	if(newsListTemplate.indexOf("<!--List_Start-->") > -1){
         	StringBuffer itemBuffer = new StringBuffer();	//显示的列表内容
@@ -760,7 +857,8 @@ public class TemplateCMS {
         	}
         	int zongshu = number + start_number;	//从start_number 开始，去到第几个为止。
         	for (int i = start_number; i < list.size() && i < zongshu; i++) {
-    			itemBuffer.append(replaceNewsTag(itemTemp, list.get(i), siteColumn));
+    			News news = list.get(i);
+        		itemBuffer.append(replaceNewsTag(itemTemp, news, siteColumn, newsDataMap.get(news.getId())));
     		}
     		newsListTemplate = StringUtil.subStringReplace(newsListTemplate+" ", "<!--List_Start-->", "<!--List_End-->", itemBuffer.toString());
     	}

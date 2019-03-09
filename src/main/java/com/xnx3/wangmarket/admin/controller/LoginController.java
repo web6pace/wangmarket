@@ -1,25 +1,21 @@
 package com.xnx3.wangmarket.admin.controller;
 
-
-import java.util.List;
-
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-
 import com.xnx3.DateUtil;
 import com.xnx3.Lang;
+import com.xnx3.StringUtil;
 import com.xnx3.j2ee.Global;
 import com.xnx3.j2ee.entity.SmsLog;
 import com.xnx3.j2ee.entity.User;
 import com.xnx3.j2ee.func.ActionLogCache;
-import com.xnx3.j2ee.func.Captcha;
 import com.xnx3.j2ee.service.ApiService;
 import com.xnx3.j2ee.service.SmsLogService;
 import com.xnx3.j2ee.service.SqlService;
@@ -28,7 +24,7 @@ import com.xnx3.j2ee.shiro.ShiroFunc;
 import com.xnx3.j2ee.vo.BaseVO;
 import com.xnx3.j2ee.vo.UserVO;
 import com.xnx3.wangmarket.superadmin.entity.Agency;
-import com.xnx3.wangmarket.admin.Func;
+import com.xnx3.wangmarket.superadmin.entity.AgencyData;
 import com.xnx3.wangmarket.admin.G;
 import com.xnx3.wangmarket.admin.bean.UserBean;
 import com.xnx3.wangmarket.admin.entity.Site;
@@ -115,7 +111,7 @@ public class LoginController extends com.xnx3.wangmarket.admin.controller.BaseCo
 //		BaseVO vo = Captcha.compare(request.getParameter("code"), request);
 //		if(vo.getResult() == BaseVO.SUCCESS){
 			//判断手机号是否已被注册使用了
-			String phone = request.getParameter("phone");
+			String phone = filter(request.getParameter("phone"));
 			if(phone == null || phone.length() < 3){
 				return error("请输入正确的手机号");
 			}
@@ -123,8 +119,12 @@ public class LoginController extends com.xnx3.wangmarket.admin.controller.BaseCo
 				return error("此手机号已注册过了！请更换一个手机号吧");
 			}
 			
-			vo = smsLogService.sendByAliyunSMS(request, G.aliyunSMSUtil, G.AliyunSMS_SignName, G.AliyunSMS_Login_TemplateCode,  request.getParameter("phone"), SmsLog.TYPE_REG);
+			vo = smsLogService.sendByAliyunSMS(request, G.aliyunSMSUtil, G.AliyunSMS_SignName, G.AliyunSMS_Login_TemplateCode,  filter(request.getParameter("phone")), SmsLog.TYPE_REG);
 			AliyunLog.addActionLog(getSiteId(), "获取手机号验证码"+(vo.getResult() - BaseVO.SUCCESS == 0 ? "成功":"失败")+"，用户获取验证码的手机号："+request.getParameter("phone"));
+			if(vo.getResult() - BaseVO.SUCCESS == 0){
+				//如果成功，将info的验证码去掉
+				vo.setInfo("获取成功！");
+			}
 //		}else{
 //			AliyunLog.addActionLog(getSiteId(), "图片验证码错误！用户想要获取验证码的手机号："+request.getParameter("phone"));
 //		}
@@ -155,6 +155,10 @@ public class LoginController extends com.xnx3.wangmarket.admin.controller.BaseCo
 		if(Global.getInt("ALLOW_USER_REG") == 0){
 			return error("抱歉，当前禁止用户自行注册开通网站！");
 		}
+		username = StringUtil.filterXss(username);
+		email = filter(email);
+		phone = filter(phone);
+		code = filter(code);
 		
 		//判断用户的短信验证码
 		BaseVO verifyVO = smsLogService.verifyPhoneAndCode(phone, code, SmsLog.TYPE_REG, 300);
@@ -164,9 +168,9 @@ public class LoginController extends com.xnx3.wangmarket.admin.controller.BaseCo
 		
 		//注册用户
 		User user = new User();
-		user.setUsername(filter(username));
-		user.setPhone(filter(phone));
-		user.setEmail(filter(email));
+		user.setUsername(username);
+		user.setPhone(phone);
+		user.setEmail(email);
 		user.setPassword(password);
 		user.setOssSizeHave(G.REG_GENERAL_OSS_HAVE);
 		BaseVO userVO = userService.reg(user, request);
@@ -223,13 +227,18 @@ public class LoginController extends com.xnx3.wangmarket.admin.controller.BaseCo
 			return error(model, vo.getInfo());
 		}
 		
-		
 		//用于缓存入Session，用户的一些基本信息，比如用户的站点信息、用户的上级代理信息、如果当前用户是代理，还包含当前用户的代理信息等
 		UserBean userBean = new UserBean();
 		
 		//得到上级的代理信息
 		Agency parentAgency = sqlService.findAloneBySqlQuery("SELECT * FROM agency WHERE userid = " + getUser().getReferrerid(), Agency.class);
 		userBean.setParentAgency(parentAgency);
+		if(parentAgency != null){
+			//得到上级代理的变长表信息
+			AgencyData parentAgencyData = sqlService.findAloneBySqlQuery("SELECT * FROM agency_data WHERE id = " + parentAgency.getId(), AgencyData.class);
+			userBean.setParentAgencyData(parentAgencyData);
+		}
+		
 		//当前时间
 		int currentTime = DateUtil.timeForUnix10();	
 

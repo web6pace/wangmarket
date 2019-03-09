@@ -12,7 +12,9 @@ import javax.annotation.Resource;
 import org.springframework.stereotype.Service;
 
 import com.xnx3.DateUtil;
+import com.xnx3.StringUtil;
 import com.xnx3.j2ee.dao.SqlDAO;
+import com.xnx3.j2ee.func.Safety;
 import com.xnx3.j2ee.shiro.ShiroFunc;
 import com.xnx3.wangmarket.admin.Func;
 import com.xnx3.wangmarket.admin.cache.GenerateHTML;
@@ -122,6 +124,10 @@ public class SiteColumnServiceImpl implements SiteColumnService {
 		Func.getUserBeanForShiroSession().setSiteColumnMap(siteColumnMap);
 	}
 	
+	public SiteColumn getSiteColumnByCache(int siteColumnId){
+		return getSiteColumnMapByCache().get(siteColumnId);
+	}
+	
 	public Map<Integer, SiteColumn> getSiteColumnMapByCache(){
 		Map<Integer, SiteColumn> siteColumnMap = Func.getUserBeanForShiroSession().getSiteColumnMap();
 		//若缓存中没有，那么重新加入
@@ -163,13 +169,13 @@ public class SiteColumnServiceImpl implements SiteColumnService {
 			news.setAddtime(DateUtil.timeForUnix10());
 			news.setCid(siteColumn.getId());
 			news.setCommentnum(0);
-			news.setIntro(siteColumn.getName());
+			news.setIntro(Safety.filter(siteColumn.getName()));
 			news.setOpposenum(0);
 			news.setReadnum(0);
 			news.setSiteid(siteColumn.getSiteid());
 			news.setStatus(News.STATUS_NORMAL);
-			news.setTitle(siteColumn.getName());
-			news.setTitlepic(siteColumn.getIcon());
+			news.setTitle(news.getIntro());
+			news.setTitlepic(StringUtil.filterXss(siteColumn.getIcon()));
 			news.setType(News.TYPE_PAGE);
 			news.setUserid(ShiroFunc.getUser().getId());
 			sqlDAO.save(news);
@@ -184,7 +190,7 @@ public class SiteColumnServiceImpl implements SiteColumnService {
 			}
 		}else{
 			if(updateName){
-				news.setTitle(siteColumn.getName());
+				news.setTitle(Safety.filter(siteColumn.getName()));
 				sqlDAO.save(news);
 				
 				NewsData newsData = sqlDAO.findById(NewsData.class, news.getId());
@@ -193,4 +199,16 @@ public class SiteColumnServiceImpl implements SiteColumnService {
 			}
 		}
 	}
+	
+	/**
+	 * 刷新 Session 中存储的栏目缓存。清空掉原本的缓存，重新从数据库中读最新的栏目数据并缓存入Session
+	 */
+	public void refreshCache(){
+		//清空掉原本的
+		Func.getUserBeanForShiroSession().setSiteColumnMap(null);
+		
+		//重新获取一次
+		getSiteColumnMapByCache();
+	}
+	
 }

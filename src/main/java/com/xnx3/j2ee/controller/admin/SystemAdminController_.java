@@ -1,10 +1,8 @@
 package com.xnx3.j2ee.controller.admin;
 
 import java.util.List;
-
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-
 import org.apache.shiro.authz.annotation.RequiresPermissions;
 import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
@@ -12,14 +10,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
-
 import com.xnx3.DateUtil;
 import com.xnx3.StringUtil;
 import com.xnx3.j2ee.Global;
-import com.xnx3.j2ee.entity.PostClass;
 import com.xnx3.j2ee.entity.System;
 import com.xnx3.j2ee.func.ActionLogCache;
-import com.xnx3.j2ee.generateCache.Bbs;
 import com.xnx3.j2ee.generateCache.Message;
 import com.xnx3.j2ee.service.SqlService;
 import com.xnx3.j2ee.service.SystemService;
@@ -39,20 +34,6 @@ public class SystemAdminController_ extends BaseController {
 	private SqlService sqlService;
 	@Resource
 	private SystemService systemService;
-	
-	/**
-	 * 生成所有缓存
-	 */
-	@RequiresPermissions("adminSystemGenerateAllCache")
-	@RequestMapping("generateAllCache${url.suffix}")
-	public String generateAllCache(Model model, HttpServletRequest request){
-		new Bbs().postClass(sqlService.findAll(PostClass.class));
-		
-		new Message().state();
-		
-		ActionLogCache.insert(request, "重新生成系统缓存");
-		return success(model, "已生成所有缓存", "admin/system/index.do");
-	}
 	
 
 	/**
@@ -79,25 +60,29 @@ public class SystemAdminController_ extends BaseController {
 	
 	/**
 	 * 新增/修改全局变量，修改system表的单个变量
-	 * @param id 要修改的变量的id
+	 * @param name 要修改的变量的name。 如果name为空字符串，则是新增； 如果name不存在这条记录，也是新增这条name的记录
 	 */
 	@RequiresPermissions("adminSystemVariable")
 	@RequestMapping("variable${url.suffix}")
 	public String variable(
-			@RequestParam(value = "id", required = false, defaultValue="0") int id,
+			@RequestParam(value = "name", required = false, defaultValue="") String name,
 			Model model, HttpServletRequest request){
+		
 		System system;
-		if(id == 0){
+		if(name.length() == 0){
 			//新增
 			system = new System();
 			ActionLogCache.insert(request, "进入新增系统变量页面");
 		}else{
 			//修改
-			system = sqlService.findById(System.class, id);
+			system = sqlService.findAloneByProperty(System.class, "name", name);
 			if(system == null){
-				return error(model, "要修改的变量不存在");
+				system = new System();
+				system.setName(name);
+				ActionLogCache.insert(request, "进入修改系统变量页面,新增变量", system.getName());
+			}else{
+				ActionLogCache.insert(request, "进入修改系统变量页面,修改变量", system.getName());
 			}
-			ActionLogCache.insert(request, id, "进入修改系统变量页面", system.getName()+"="+system.getValue());
 		}
 		
 		//编辑页面
@@ -107,29 +92,23 @@ public class SystemAdminController_ extends BaseController {
 	
 
 	/**
-	 * 新增、修改全局变量后的保存
+	 * 新增、修改全局变量后的保存。根据 name 来进行增、改
 	 */
 	@RequiresPermissions("adminSystemVariable")
 	@RequestMapping(value="variableSave${url.suffix}", method = RequestMethod.POST)
 	@ResponseBody
 	public BaseVO variableSave(System sys, Model model, HttpServletRequest request){
-		System system;
-		if(sys.getId() == null || sys.getId() == 0){
+		System system = sqlService.findAloneByProperty(System.class, "name", sys.getName());
+		if(system == null){
 			//新增
 			system = new System();
+			system.setName(sys.getName());
 		}else{
-			//修改
-			system = sqlService.findById(System.class, sys.getId());
-			if(system == null){
-				return error("要修改的变量不存在");
-			}
+			//编辑
 		}
-
-		//保存
-		system.setName(StringUtil.filterXss(sys.getName()));
-		system.setValue(StringUtil.filterXss(sys.getValue()));
-		system.setDescription(StringUtil.filterXss(sys.getDescription()));
+		system.setDescription(sys.getDescription());
 		system.setLasttime(DateUtil.timeForUnix10());
+		system.setValue(sys.getValue());
 		sqlService.save(system);
 		
 		/***更新内存数据****/

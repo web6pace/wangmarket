@@ -2,15 +2,9 @@ package com.xnx3.j2ee.service.impl;
 
 import java.util.List;
 import java.util.Map;
-
 import javax.annotation.Resource;
-
-import org.hibernate.Session;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-
 import com.xnx3.j2ee.dao.SqlDAO;
-import com.xnx3.j2ee.func.Log;
 import com.xnx3.j2ee.service.SqlService;
 import com.xnx3.j2ee.util.Sql;
 
@@ -69,6 +63,10 @@ public class SqlServiceImpl implements SqlService {
 		return sqlDAO.findByProperty(c, propertyName, value); 
 	}
 
+	public <E> E findAloneByProperty(Class<E> c,String propertyName, Object value){
+		return sqlDAO.findAloneByProperty(c, propertyName, value); 
+	}
+	
 	public int executeSql(String sql) {
 		return sqlDAO.executeSql(sql);
 	}
@@ -94,6 +92,16 @@ public class SqlServiceImpl implements SqlService {
 //	}
 	
 	public List findByHql(String hql, Map<String, Object> parameterMap){
-		return sqlDAO.findByHql(hql, parameterMap);
+		return sqlDAO.findByHql(hql, parameterMap, 0);
+	}
+	public List findByHql(String hql, Map<String, Object> parameterMap, int maxNumber){
+		return sqlDAO.findByHql(hql, parameterMap, maxNumber);
+	}
+	
+	public int executeByHql(String hql, Map<String, Object> parameterMap) {
+		return sqlDAO.executeByHql(hql, parameterMap);
+	}
+	public int updateByHql(Class c, String setPropertyName, String setPropertyValue, String wherePropertyName, Object wherePropertyValue){
+		return sqlDAO.updateByHql(c, setPropertyName, setPropertyValue, wherePropertyName, wherePropertyValue);
 	}
 }

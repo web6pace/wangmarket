@@ -3,14 +3,11 @@
 <%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
 <%@ taglib uri="http://java.sun.com/jsp/jstl/core" prefix="c" %>
 <%@ taglib uri="http://www.xnx3.com/java_xnx3/xnx3_tld" prefix="x" %>
-<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %><%
-String path = request.getContextPath();
-String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.getServerPort()+path+"/";
-%>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt" %>
 <jsp:include page="iw/common/head.jsp">
 	<jsp:param name="title" value="免费开通网站"/>
 </jsp:include>
-<script src="<%=basePath+Global.CACHE_FILE %>Site_client.js"></script>
+<script src="/<%=Global.CACHE_FILE %>Site_client.js"></script>
 <script src="<%=Global.get("ATTACHMENT_FILE_URL") %>js/admin/commonedit.js?v=<%=G.VERSION %>"></script>
 <style>
 .myForm{
@@ -55,7 +52,7 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
 }
 </style>
 
-<form class="layui-form layui-elem-quote layui-quote-nm myForm" action="<%=basePath %>regSubmit.do">
+<form class="layui-form layui-elem-quote layui-quote-nm myForm" action="/regSubmit.do">
   <div class="layui-form-item" style="    height: 70px;
     background-color: #eeeeee;
     line-height: 70px;
@@ -70,7 +67,7 @@ String basePath = request.getScheme()+"://"+request.getServerName()+":"+request.
   	<div class="layui-form-item">
 		<label class="layui-form-label">网站类型</label>
 		<div class="layui-input-block">
-			<script type="text/javascript">writeSelectAllOptionForclient_('','请选择', true);</script>
+			<script type="text/javascript">writeSelectAllOptionForclient_('3','请选择', true);</script>
 		</div>
 		<div id="help_client" class="layui-form-mid layui-word-aux" style="cursor: pointer;float: right;margin-top: -38px;margin-right: -28px;"><i class="layui-icon" style="font-size:18px;">&#xe607;</i></div>
 	</div>
@@ -145,7 +142,7 @@ layui.use('form', function(){
   form.on('submit(formDemo)', function(data){
 	$.showLoading('开通中...');
     var d=$("form").serialize();
-	$.post("<%=basePath %>userCreateSite.do", d, function (result) { 
+	$.post("/userCreateSite.do", d, function (result) { 
 		$.hideLoading();
        	var obj = JSON.parse(result);
        	if(obj.result == '1'){
@@ -223,15 +220,15 @@ $(function(){
 //右侧弹出提示
 function rightTip(){
 	layer.open({
-	  title: '临时弹窗之问题反馈',offset: 'rb', shadeClose:true, shade:0,
-	  btn: ['反馈问题'] //可以无限个按钮
-	  ,content: '您有什么不懂的，或者自助开通时，遇到什么问题导致您无法操作、不知如何进行，或者无法开通，任何问题都可反馈给我们。也或者直接关注我们微信公众号"wangmarket"进行在线沟通咨询。'
-	  ,yes: function(index, layero){
-		openWenTiFanKui();
-	  }
+	  title: '临时弹窗之问题反馈',offset: 'rb', shadeClose:true, shade:0
+	  ,content: '您有什么不懂的，或者自助开通时，遇到什么问题导致您无法操作、不知如何进行，或者无法开通，任何问题都可反馈给我们。也或者直接关注我们微信公众号"wangmarket"进行在线沟通咨询。<br/>我的QQ:921153866<br/>微信：xnx3com'
 	});
 }
-setTimeout("rightTip()",1000);
+
+//未授权用户，请尊重作者劳动成果，保留我方版权标示及链接！授权参见：http://www.wang.market/price.html
+<% if(G.copyright){ %>
+	setTimeout("rightTip()",1000);
+<% } %>
 </script>
 
 

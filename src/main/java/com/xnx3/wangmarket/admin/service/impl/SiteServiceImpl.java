@@ -6,26 +6,24 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
 import javax.annotation.Resource;
 import javax.servlet.http.HttpServletRequest;
-
 import net.sf.json.JSONObject;
-
 import org.springframework.stereotype.Service;
 import org.springframework.ui.Model;
-
 import com.xnx3.DateUtil;
 import com.xnx3.file.FileUtil;
 import com.xnx3.wangmarket.im.service.ImService;
 import com.xnx3.j2ee.Global;
 import com.xnx3.j2ee.dao.SqlDAO;
 import com.xnx3.j2ee.func.AttachmentFile;
+import com.xnx3.j2ee.func.Log;
 import com.xnx3.j2ee.func.Safety;
 import com.xnx3.j2ee.shiro.ShiroFunc;
 import com.xnx3.j2ee.vo.BaseVO;
 import com.xnx3.wangmarket.admin.Func;
 import com.xnx3.wangmarket.admin.G;
+import com.xnx3.wangmarket.admin.bean.NewsDataBean;
 import com.xnx3.wangmarket.admin.cache.GenerateHTML;
 import com.xnx3.wangmarket.admin.cache.Template;
 import com.xnx3.wangmarket.admin.cache.TemplateCMS;
@@ -42,6 +40,7 @@ import com.xnx3.wangmarket.admin.service.NewsService;
 import com.xnx3.wangmarket.admin.service.SiteColumnService;
 import com.xnx3.wangmarket.admin.service.SiteService;
 import com.xnx3.wangmarket.admin.service.TemplateService;
+import com.xnx3.wangmarket.admin.util.TemplateUtil;
 import com.xnx3.wangmarket.admin.vo.IndexVO;
 import com.xnx3.wangmarket.admin.vo.SiteColumnTreeVO;
 import com.xnx3.wangmarket.admin.vo.SiteRemainHintVO;
@@ -51,7 +50,9 @@ import com.xnx3.wangmarket.admin.vo.TemplatePageVO;
 import com.xnx3.wangmarket.admin.vo.TemplateVarVO;
 import com.xnx3.wangmarket.admin.vo.bean.TemplateCommon;
 import com.xnx3.wangmarket.superadmin.entity.Agency;
+import com.xnx3.wangmarket.domain.bean.MQBean;
 import com.xnx3.wangmarket.domain.bean.SimpleSite;
+import com.xnx3.wangmarket.domain.mq.DomainMQ;
 
 @Service("siteService")
 public class SiteServiceImpl implements SiteService {
@@ -106,11 +107,7 @@ public class SiteServiceImpl implements SiteService {
 		for (int i = 0; i < listNews.size(); i++) {
 			News news = listNews.get(i);
 			NewsData newsData = listNewsData.get(i);
-			String text = "";
-			if(newsData != null && newsData.getText() != null){
-				text = newsData.getText();
-			}
-			newsService.generateViewHtml(site, news,siteColumnMap.get(news.getCid()), text, request);
+			newsService.generateViewHtml(site, news,siteColumnMap.get(news.getCid()), new NewsDataBean(newsData), request);
 		}
 		
 		//首页生成
@@ -314,8 +311,12 @@ public class SiteServiceImpl implements SiteService {
 	public BaseVO refreshForTemplate(HttpServletRequest request){
 		BaseVO vo = new BaseVO();
 		Site site = Func.getCurrentSite();
+		if(site == null){
+			vo.setBaseVO(BaseVO.FAILURE, "尚未登陆");
+			return vo;
+		}
 		
-		TemplateCMS template = new TemplateCMS(site);
+		TemplateCMS template = new TemplateCMS(site, TemplateUtil.getTemplateByName(site.getTemplateName()));
 		//取得当前网站所有模版页面
 //		TemplatePageListVO templatePageListVO = templateService.getTemplatePageListByCache(request);
 		//取得当前网站首页模版页面
@@ -344,16 +345,32 @@ public class SiteServiceImpl implements SiteService {
 				}
 			}
 			
+			//默认是按照时间倒序，但是v4.4以后，用户可以自定义，可以根据时间正序排序，如果不是默认的倒序的话，就需要重新排序
+			//这里是某个具体子栏目的排序，父栏目排序调整的在下面
+			if(siteColumn.getListRank() != null && siteColumn.getListRank() - SiteColumn.LIST_RANK_ADDTIME_ASC == 0 ){
+				Collections.sort(nList, new Comparator<News>() {
+		            public int compare(News n1, News n2) {
+	                	//按照发布时间正序排序，发布时间越早，排列越靠前
+	                	return n1.getAddtime() - n2.getAddtime();
+		            }
+		        });
+			}
+			
 			columnMap.put(siteColumn.getCodeName(), siteColumn);
 			columnNewsMap.put(siteColumn.getCodeName(), nList);
 		}
 		
+		//对栏目进行缓存，以栏目id为key，将栏目加入进Map中。用id来取栏目。 同 columnMap. v4.7.1增加
+		Map<Integer, SiteColumn> columnMapForId = new HashMap<Integer, SiteColumn>();
+		for (Map.Entry<String, SiteColumn> entry : columnMap.entrySet()) { 
+			columnMapForId.put(entry.getValue().getId(), entry.getValue());
+		}
 		
 		//对 newsDataList 网站文章的内容进行调整，调整为map key:newsData.id  value:newsData.text
-		Map<Integer, String> newsDataMap = new HashMap<Integer, String>();
+		Map<Integer, NewsDataBean> newsDataMap = new HashMap<Integer, NewsDataBean>();
 		for (int i = 0; i < newsDataList.size(); i++) {
 			NewsData nd = newsDataList.get(i);
-			newsDataMap.put(nd.getId(), nd.getText());
+			newsDataMap.put(nd.getId(), new NewsDataBean(nd));
 		}
 		
 		
@@ -406,19 +423,22 @@ public class SiteServiceImpl implements SiteService {
 				for (int i = 0; i < sct.getList().size(); i++) {
 					SiteColumnTreeVO subSct = sct.getList().get(i);	//子栏目的栏目信息
 					
-					//将该栏目的News文章，创建一个新的List
-					List<com.xnx3.wangmarket.admin.bean.News> nList = new ArrayList<com.xnx3.wangmarket.admin.bean.News>(); 
-					List<News> oList = columnNewsMap.get(subSct.getSiteColumn().getCodeName());
-					for (int j = 0; j < oList.size(); j++) {
-						com.xnx3.wangmarket.admin.bean.News n = new com.xnx3.wangmarket.admin.bean.News();
-						News news = oList.get(j);
-						n.setNews(news);
-						n.setRank(news.getId());
-						nList.add(n);
+					//v4.7版本更新，增加判断，只有栏目类型是列表页面的，才会将子栏目的信息合并入父栏目。
+					if(subSct.getSiteColumn().getType() - SiteColumn.TYPE_LIST == 0){
+						//将该栏目的News文章，创建一个新的List
+						List<com.xnx3.wangmarket.admin.bean.News> nList = new ArrayList<com.xnx3.wangmarket.admin.bean.News>(); 
+						List<News> oList = columnNewsMap.get(subSct.getSiteColumn().getCodeName());
+						for (int j = 0; j < oList.size(); j++) {
+							com.xnx3.wangmarket.admin.bean.News n = new com.xnx3.wangmarket.admin.bean.News();
+							News news = oList.get(j);
+							n.setNews(news);
+							n.setRank(news.getId());
+							nList.add(n);
+						}
+						
+						//将新的List，合并入父栏目CodeName的List
+						columnTreeNewsMap.get(sct.getSiteColumn().getCodeName()).addAll(nList);
 					}
-					
-					//将新的List，合并入父栏目CodeName的List
-					columnTreeNewsMap.get(sct.getSiteColumn().getCodeName()).addAll(nList);
 				}
 			}
 		}
@@ -429,14 +449,18 @@ public class SiteServiceImpl implements SiteService {
 //				Collections.sort(columnTreeNewsMap.get(sct.getSiteColumn().getCodeName()));
 				Collections.sort(columnTreeNewsMap.get(sct.getSiteColumn().getCodeName()), new Comparator<com.xnx3.wangmarket.admin.bean.News>() {
 		            public int compare(com.xnx3.wangmarket.admin.bean.News n1, com.xnx3.wangmarket.admin.bean.News n2) {
-		                /*按员工编号正序排序*/
-		                return n1.getNews().getAddtime() - n2.getNews().getAddtime();
+		                if(sct.getSiteColumn().getListRank() != null && sct.getSiteColumn().getListRank() - SiteColumn.LIST_RANK_ADDTIME_ASC == 0){
+		                	//按照发布时间正序排序，发布时间越早，排列越靠前
+		                	return n2.getNews().getAddtime() - n1.getNews().getAddtime();
+		                }else{
+		                	//按照发布时间倒序排序，发布时间越晚，排列越靠前
+		                	return n1.getNews().getAddtime() - n2.getNews().getAddtime();
+		                }
 		            }
 		        });
 				
 			}
 		}
-//		System.out.println("paixuqian:"+columnTreeMap.size());
 		//排序完后，将其取出，加入columnNewsMap中，供模版中动态调用父栏目代码，就能直接拿到其的所有子栏目信息数据
 		for (Map.Entry<String, SiteColumnTreeVO> entry : columnTreeMap.entrySet()) {
 			SiteColumnTreeVO sct = entry.getValue();
@@ -490,12 +514,15 @@ public class SiteServiceImpl implements SiteService {
 			return vo;
 		}
 		
-		//当网站只有一个首页时，是不需要这个的。所以只需要上面的，判断一下是否有模版页就够了。 v2.24更新
+		//v4.7加入，避免没有模版变量时，生成整站报错
+		if(Func.getUserBeanForShiroSession().getTemplateVarMapForOriginal() == null){
+			Func.getUserBeanForShiroSession().setTemplateVarMapForOriginal(new HashMap<String, TemplateVarVO>());
+		}
 		for (Map.Entry<String, TemplateVarVO> entry : Func.getUserBeanForShiroSession().getTemplateVarMapForOriginal().entrySet()) {  
 			//替换公共标签
 			String v = template.replacePublicTag(entry.getValue().getTemplateVarData().getText());
 			//替换栏目的动态调用标签
-			v = template.replaceSiteColumnBlock(v, columnNewsMap, columnMap, columnTreeMap, true, null);	
+			v = template.replaceSiteColumnBlock(v, columnNewsMap, columnMap, columnTreeMap, true, null, newsDataMap);	
 			Func.getUserBeanForShiroSession().getTemplateVarCompileDataMap().put(entry.getKey(), v);
 		}
 		
@@ -526,7 +553,7 @@ public class SiteServiceImpl implements SiteService {
 			//替换公共标签
 			text = template.replacePublicTag(text);
 			//替换栏目的动态调用标签
-			text = template.replaceSiteColumnBlock(text, columnNewsMap, columnMap, columnTreeMap, true, null);	
+			text = template.replaceSiteColumnBlock(text, columnNewsMap, columnMap, columnTreeMap, true, null, newsDataMap);	
 			//装载模版变量
 			text = template.assemblyTemplateVar(text);
 			
@@ -539,7 +566,7 @@ public class SiteServiceImpl implements SiteService {
 		//生成首页
 		String indexHtml = templateCacheMap.get(templatePageIndexVO.getTemplatePage().getName());
 		//替换首页中存在的栏目的动态调用标签
-		indexHtml = template.replaceSiteColumnBlock(indexHtml, columnNewsMap, columnMap, columnTreeMap, true, null);
+		indexHtml = template.replaceSiteColumnBlock(indexHtml, columnNewsMap, columnMap, columnTreeMap, true, null, newsDataMap);
 		indexHtml = template.replacePublicTag(indexHtml);	//替换公共标签
 		//生成首页保存到OSS或本地盘
 		AttachmentFile.putStringFile("site/"+site.getId()+"/index.html", indexHtml);
@@ -563,22 +590,21 @@ public class SiteServiceImpl implements SiteService {
 				return vo;
 			}
 			//替换内容模版中的动态栏目调用(动态标签引用)
-			viewTemplateHtml = template.replaceSiteColumnBlock(viewTemplateHtml, columnNewsMap, columnMap, columnTreeMap, false, siteColumn);	
+			viewTemplateHtml = template.replaceSiteColumnBlock(viewTemplateHtml, columnNewsMap, columnMap, columnTreeMap, false, siteColumn, newsDataMap);	
 			
 			//如果是新闻或者图文列表，那么才会生成栏目列表页面
-			if(siteColumn.getType() - SiteColumn.TYPE_NEWS == 0 || siteColumn.getType() - SiteColumn.TYPE_IMAGENEWS == 0){
+			if(siteColumn.getType() - SiteColumn.TYPE_LIST == 0 || siteColumn.getType() - SiteColumn.TYPE_NEWS == 0 || siteColumn.getType() - SiteColumn.TYPE_IMAGENEWS == 0){
 				//当前栏目的列表模版
 				String listTemplateHtml = templateCacheMap.get(siteColumn.getTemplatePageListName());
 				if(listTemplateHtml == null){
-					vo.setBaseVO(BaseVO.FAILURE, "栏目["+siteColumn.getName()+"]未绑定模版列表页面，请去绑定");
+					vo.setBaseVO(BaseVO.FAILURE, "栏目["+siteColumn.getName()+"]未绑定模版列表页面，请去绑定，或删除这个栏目");
 					return vo;
 				}
 				//替换列表模版中的动态栏目调用(动态标签引用)
-				listTemplateHtml = template.replaceSiteColumnBlock(listTemplateHtml, columnNewsMap, columnMap, columnTreeMap, false, siteColumn);	
-				
+				listTemplateHtml = template.replaceSiteColumnBlock(listTemplateHtml, columnNewsMap, columnMap, columnTreeMap, false, siteColumn, newsDataMap);	
 				
 				//生成其列表页面
-				template.generateListHtmlForWholeSite(listTemplateHtml, siteColumn, columnNewsList);
+				template.generateListHtmlForWholeSite(listTemplateHtml, siteColumn, columnNewsList, newsDataMap, columnMapForId);
 				
 				//XML加入栏目页面
 				xml = xml + getSitemapUrl(indexUrl+"/"+template.generateSiteColumnListPageHtmlName(siteColumn, 1)+".html", "0.4");
@@ -586,32 +612,35 @@ public class SiteServiceImpl implements SiteService {
 				/*
 				 * 生成当前栏目的内容页面
 				 */
-				for (int i = 0; i < columnNewsList.size(); i++) {
-					News news = columnNewsList.get(i);
-					
-					if(siteColumn.getId() - news.getCid() == 0){
-						//当前文章是此栏目的，那么生成文章详情。不然是不生成的，免得在父栏目中生成子栏目的页面，导致siteColumn调用出现错误
-						//列表页的内容详情页面，还会有上一篇、下一篇的功能
-						News upNews = null;
-						News nextNews = null;
-						if(i > 0){
-							upNews = columnNewsList.get(i-1);
+				//判断栏目属性中，是否设置了生成内容详情页面, v4.7增加
+				if(siteColumn.getUseGenerateView() == null || siteColumn.getUseGenerateView() - SiteColumn.USED_ENABLE == 0){
+					for (int i = 0; i < columnNewsList.size(); i++) {
+						News news = columnNewsList.get(i);
+						
+						if(siteColumn.getId() - news.getCid() == 0){
+							//当前文章是此栏目的，那么生成文章详情。不然是不生成的，免得在父栏目中生成子栏目的页面，导致siteColumn调用出现错误
+							//列表页的内容详情页面，还会有上一篇、下一篇的功能
+							News upNews = null;
+							News nextNews = null;
+							if(i > 0){
+								upNews = columnNewsList.get(i-1);
+							}
+							if((i+1) < columnNewsList.size()){
+								nextNews = columnNewsList.get(i+1);
+							}
+							//生成内容页面
+							template.generateViewHtmlForTemplateForWholeSite(news, siteColumn, newsDataMap.get(news.getId()), viewTemplateHtml, upNews, nextNews);
+							//XML加入内容页面
+							xml = xml + getSitemapUrl(indexUrl+"/"+template.generateNewsPageHtmlName(siteColumn, news)+".html", "0.5");
 						}
-						if((i+1) < columnNewsList.size()){
-							nextNews = columnNewsList.get(i+1);
-						}
-						//生成内容页面
-						template.generateViewHtmlForTemplateForWholeSite(news, siteColumn, newsDataMap.get(news.getId()), viewTemplateHtml, upNews, nextNews);
-						//XML加入内容页面
-						xml = xml + getSitemapUrl(indexUrl+"/"+template.generateNewsPageHtmlName(siteColumn, news)+".html", "0.5");
 					}
 				}
 				
-			}else if(siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
+			}else if(siteColumn.getType() - SiteColumn.TYPE_ALONEPAGE == 0 || siteColumn.getType() - SiteColumn.TYPE_PAGE == 0){
 				//独立页面，只生成内容模版
 				if(siteColumn.getEditMode() - SiteColumn.EDIT_MODE_TEMPLATE == 0){
 					//模版式编辑，无 news ， 则直接生成
-					template.generateViewHtmlForTemplateForWholeSite(null, siteColumn, "", viewTemplateHtml, null, null);
+					template.generateViewHtmlForTemplateForWholeSite(null, siteColumn, new NewsDataBean(null), viewTemplateHtml, null, null);
 					//独立页面享有更大的权重，赋予其 0.8
 					xml = xml + getSitemapUrl(indexUrl+"/"+template.generateNewsPageHtmlName(siteColumn, null)+".html", "0.8");
 				}else{
@@ -624,7 +653,7 @@ public class SiteServiceImpl implements SiteService {
 					}
 				}
 			}else{
-				//其他栏目不管，比如超链接的栏目
+				//其他栏目不管，当然，也没有其他类型栏目了，v4.6版本更新后，CMS模式一共就这两种类型的
 			}
 		} 
 		
@@ -982,7 +1011,10 @@ public class SiteServiceImpl implements SiteService {
 				
 				//刷新增加域名缓存
 				//更新域名服务器
-				updateDomainServers(site);
+				MQBean mqBean = new MQBean();
+				mqBean.setType(MQBean.TYPE_NEW_SITE);
+				mqBean.setSimpleSite(new SimpleSite(site));
+				updateDomainServers(mqBean);
 			}
 			
 			//更新当前Session缓存。如果是api接口开通网站，session是空的。所以要加null判断
@@ -1200,20 +1232,22 @@ public class SiteServiceImpl implements SiteService {
 		return "";
 	}
 	
-	public void updateDomainServers(Site site) {
-		SimpleSite ss = new SimpleSite(site);
-		JSONObject json = JSONObject.fromObject(ss);
+	public void updateDomainServers(MQBean mqBean) {
+//		SimpleSite ss = new SimpleSite(site);
+//		JSONObject json = JSONObject.fromObject(ss);
 		
 		//先更新当前应用内存中的
-		com.xnx3.wangmarket.domain.G.putDomain(ss.getDomain(), ss);
-		if(ss.getBindDomain() != null && ss.getBindDomain().length() > 1){
-			com.xnx3.wangmarket.domain.G.putBindDomain(ss.getBindDomain(), ss);
-		}
+//		com.xnx3.wangmarket.domain.G.putDomain(ss.getDomain(), ss);
+//		if(ss.getBindDomain() != null && ss.getBindDomain().length() > 1){
+//			com.xnx3.wangmarket.domain.G.putBindDomain(ss.getBindDomain(), ss);
+//		}
+		
+		DomainMQ.send("domain", JSONObject.fromObject(mqBean).toString());
 		
 		//若用户使用了分布式，那么就要用MNS同步域名改动
-		if(com.xnx3.wangmarket.domain.G.domainMNSUtil != null){
-			com.xnx3.wangmarket.domain.G.domainMNSUtil.putMessage(com.xnx3.wangmarket.domain.G.mnsDomain_queueName, json.toString());
-		}
+//		if(com.xnx3.wangmarket.domain.G.domainMNSUtil != null){
+//			com.xnx3.wangmarket.domain.G.domainMNSUtil.putMessage(com.xnx3.wangmarket.domain.G.mnsDomain_queueName, json.toString());
+//		}
 	}
 	
 }

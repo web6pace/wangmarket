@@ -50,6 +50,13 @@ public interface SiteColumnService {
 	public List<SiteColumn> getSiteColumnListByCache();
 	
 	/**
+	 * 根据栏目id，从缓存中取栏目的信息，当然，这个缓存只是缓存当前网站的栏目
+	 * @param siteColumnId 要取的栏目的id
+	 * @return {@link SiteColumn} 如果没有，则返回null
+	 */
+	public SiteColumn getSiteColumnByCache(int siteColumnId);
+	
+	/**
 	 * 移除Shiro Session中的栏目缓存，单纯只是更新Session缓存，不操作数据库。 CMS建站模式下才有更新的必要，只有CMS模式下才会用到缓存的栏目数据
 	 * @param siteColumnId 要从缓存中移除的栏目id
 	 */
@@ -61,4 +68,8 @@ public interface SiteColumnService {
 	 */
 	public void createNonePage(SiteColumn siteColumn, Site site,boolean updateName);
 	
+	/**
+	 * 刷新 Session 中存储的栏目缓存。清空掉原本的缓存，重新从数据库中读最新的栏目数据并缓存入Session。 v4.7增加
+	 */
+	public void refreshCache();
 }
